@@ -1,0 +1,29 @@
+# Global fallback
+* @Rudra @Saurav @Taranay @Vivek
+
+# Member 1 — AI / RAG Lead: Rudra
+/apps/ai-worker/ @Rudra
+/docs/ai/ @Rudra
+
+# Member 2 — DevOps Lead: Saurav
+/infrastructure/ @Saurav
+/.github/workflows/ @Saurav
+/docker-compose*.yml @Saurav
+/Dockerfile* @Saurav
+
+# Member 3 — Backend Lead: Taranay
+/apps/api/ @Taranay
+/apps/worker/ @Taranay
+/infrastructure/db/ @Taranay
+
+# Member 4 — Frontend Lead: Vivek
+/apps/web/ @Vivek
+
+# Shared Architecture, Domain Contracts & Governance (requires multi-owner review)
+/packages/contracts/ @Rudra @Saurav @Taranay @Vivek
+/architecture.md @Rudra @Saurav @Taranay @Vivek
+/design.md @Rudra @Saurav @Taranay @Vivek
+/Rules.md @Rudra @Saurav @Taranay @Vivek
+/Memory.md @Rudra @Saurav @Taranay @Vivek
+/PRD.md @Rudra @Saurav @Taranay @Vivek
+/Phases.md @Rudra @Saurav @Taranay @Vivek
