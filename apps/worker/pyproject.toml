@@ -1,0 +1,17 @@
+[project]
+name = "aiops-worker"
+version = "0.1.0"
+description = "Domain-Agnostic AIOps Background Processing Worker"
+authors = [
+    { name = "Taranay", email = "backend@aiops.local" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "rq>=1.16.0,<2.0.0",
+    "redis>=5.0.0,<6.0.0",
+    "pydantic-settings>=2.2.0,<3.0.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

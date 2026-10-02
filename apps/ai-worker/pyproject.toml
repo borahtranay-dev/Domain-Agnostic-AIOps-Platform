@@ -1,0 +1,20 @@
+[project]
+name = "aiops-ai-worker"
+version = "0.1.0"
+description = "Domain-Agnostic AIOps AI Diagnosis and RAG Subsystem Foundation"
+authors = [
+    { name = "Rudra", email = "ai@aiops.local" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110.0,<1.0.0",
+    "uvicorn[standard]>=0.28.0,<1.0.0",
+    "pydantic>=2.6.0,<3.0.0",
+    "pydantic-settings>=2.2.0,<3.0.0",
+    "langchain>=0.1.10,<0.3.0",
+    "langchain-core>=0.1.30,<0.3.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

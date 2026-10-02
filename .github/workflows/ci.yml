@@ -1,0 +1,75 @@
+name: CI Baseline — Technical Foundation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-foundation:
+    name: Python Services (API, Worker, AI-Worker)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/api/requirements.txt
+          pip install -r apps/worker/requirements.txt
+          pip install -r apps/ai-worker/requirements.txt
+          pip install -r tests/requirements-test.txt
+
+      - name: Run Foundation Tests
+        run: |
+          pytest tests/foundation/ -v
+
+  web-foundation:
+    name: Frontend Foundation (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: apps/web/package.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Next.js
+        run: npm run build
+
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build API Docker image
+        run: docker build -t aiops-api:test apps/api/
+
+      - name: Build Worker Docker image
+        run: docker build -t aiops-worker:test apps/worker/
+
+      - name: Build AI-Worker Docker image
+        run: docker build -t aiops-ai-worker:test apps/ai-worker/
+
+      - name: Build Web Docker image
+        run: docker build -t aiops-web:test apps/web/
