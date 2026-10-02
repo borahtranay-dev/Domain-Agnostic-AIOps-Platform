@@ -60,3 +60,6 @@ Thumbs.db
 docker-data/
 postgres-data/
 redis-data/
+
+# Miscellaneous
+PROJECT_KNOWLEDGE_TRANSFER.md
