@@ -1,4 +1,4 @@
-"""P2 DRAFT - pending approval by all leads."""
+"""Phase P2 Shared Contracts - Event Ingestion Models."""
 from datetime import datetime
 from enum import Enum
 from typing import Any

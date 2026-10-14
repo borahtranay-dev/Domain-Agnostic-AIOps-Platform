@@ -1,4 +1,4 @@
-"""P2 DRAFT - pending approval by all leads."""
+"""Phase P2 Shared Contracts - Common Base Models."""
 from datetime import datetime, timezone
 import uuid
 from pydantic import BaseModel, ConfigDict

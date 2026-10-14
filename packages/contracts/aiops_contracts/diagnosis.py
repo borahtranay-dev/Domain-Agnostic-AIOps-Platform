@@ -1,4 +1,4 @@
-"""P2 DRAFT - pending approval by all leads."""
+"""Phase P2 Shared Contracts - AI Diagnosis Models."""
 from datetime import datetime
 from pydantic import Field
 from .common import ContractModel, new_id, utc_now
