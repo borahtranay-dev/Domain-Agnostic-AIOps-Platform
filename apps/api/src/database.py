@@ -1,27 +1,37 @@
-"""Database connection verification helper for API foundation."""
-import psycopg2
-from typing import Tuple
+"""Database connection and session management for API subsystem."""
+from typing import Generator, Tuple
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from src.config import settings
+
+# SQLAlchemy Engine & Session Factory
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Declarative Base for ORM Models
+Base = declarative_base()
+
+
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency yielding database sessions with automatic cleanup."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def check_database_connection() -> Tuple[bool, str]:
     """Verify PostgreSQL connectivity by executing a basic ping query."""
     try:
-        conn = psycopg2.connect(
-            host=settings.POSTGRES_HOST,
-            port=settings.POSTGRES_PORT,
-            dbname=settings.POSTGRES_DB,
-            user=settings.POSTGRES_USER,
-            password=settings.POSTGRES_PASSWORD,
-            connect_timeout=3,
-        )
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT 1;")
-            result = cursor.fetchone()
-            if result and result[0] == 1:
-                conn.close()
-                return True, "PostgreSQL connection healthy"
-        conn.close()
-        return False, "Unexpected query result"
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1;"))
+            return True, "PostgreSQL connection healthy"
     except Exception as e:
         return False, f"PostgreSQL connection failed: {str(e)}"

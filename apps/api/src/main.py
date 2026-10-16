@@ -1,18 +1,37 @@
 """FastAPI Application Entrypoint for Domain-Agnostic AIOps API Subsystem.
 
 Owner: Taranay (Backend Lead)
-Phase: P1 (Technical Foundation)
+Phase: P3 (Component Construction)
 """
+import logging
+from contextlib import asynccontextmanager
 import redis
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+
 from src.config import settings
-from src.database import check_database_connection
+from src.database import Base, engine, check_database_connection
+from src.routers import events_router, incidents_router
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan managing database table creation on startup."""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully.")
+    except Exception as e:
+        logger.warning(f"Database table initialization deferred/skipped: {e}")
+    yield
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="Domain-Agnostic AIOps Self-Healing Platform Core API",
+    lifespan=lifespan,
 )
 
 # Enable CORS for Developer Cockpit (apps/web)
@@ -23,6 +42,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register Phase P3 Core Routers under /api/v1
+app.include_router(events_router, prefix="/api/v1")
+app.include_router(incidents_router, prefix="/api/v1")
 
 
 @app.get("/")

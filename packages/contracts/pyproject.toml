@@ -1,0 +1,15 @@
+[project]
+name = "aiops-contracts"
+version = "0.1.0"
+description = "Phase P2 Shared Domain Contracts for Domain-Agnostic AIOps Platform"
+authors = [
+    { name = "AIOps Platform Leads", email = "leads@aiops.local" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.6.0,<3.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
