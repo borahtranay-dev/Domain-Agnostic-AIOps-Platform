@@ -64,7 +64,7 @@ export function IncidentDetail({
             <span>&bull;</span>
             <span>Environment: <strong>{incident.environment_id || "production"}</strong></span>
             <span>&bull;</span>
-            <span>Opened: {new Date(incident.opened_at).toLocaleTimeString()}</span>
+            <span suppressHydrationWarning>Opened: {new Date(incident.opened_at).toLocaleTimeString()}</span>
           </div>
         </div>
 
@@ -217,7 +217,7 @@ export function IncidentDetail({
                 </div>
                 <pre className="evidence-content">{ev.content}</pre>
                 <div className="ev-footer">
-                  <span>Harvested at: {new Date(ev.collected_at).toLocaleTimeString()}</span>
+                  <span suppressHydrationWarning>Harvested at: {new Date(ev.collected_at).toLocaleTimeString()}</span>
                 </div>
               </div>
             ))}
@@ -288,7 +288,7 @@ export function IncidentDetail({
                 <div className="plan-meta-row">
                   <span>Plan ID: <code>{plan.id}</code></span>
                   <span>Status: <strong className="text-purple">{plan.status.toUpperCase()}</strong></span>
-                  <span>Created: {new Date(plan.created_at).toLocaleTimeString()}</span>
+                  <span suppressHydrationWarning>Created: {new Date(plan.created_at).toLocaleTimeString()}</span>
                 </div>
                 <h4>Rationale:</h4>
                 <p>{plan.rationale}</p>

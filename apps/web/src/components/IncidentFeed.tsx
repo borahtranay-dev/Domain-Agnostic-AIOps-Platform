@@ -73,7 +73,7 @@ export function IncidentFeed({ incidents, selectedId, onSelect }: IncidentFeedPr
                 <span className={`badge-status ${statusClass}`}>
                   {inc.status.replace("_", " ").toUpperCase()}
                 </span>
-                <span className="feed-item-time">
+                <span className="feed-item-time" suppressHydrationWarning>
                   {new Date(inc.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
