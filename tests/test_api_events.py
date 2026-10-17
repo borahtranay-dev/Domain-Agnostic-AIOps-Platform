@@ -14,6 +14,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import sys
+from pathlib import Path
+
+# Add apps/api to path so src.main and src.database import cleanly
+api_path = Path(__file__).resolve().parents[1] / "apps" / "api"
+if str(api_path) not in sys.path:
+    sys.path.insert(0, str(api_path))
+
 from src.main import app
 from src.database import Base, get_db
 
