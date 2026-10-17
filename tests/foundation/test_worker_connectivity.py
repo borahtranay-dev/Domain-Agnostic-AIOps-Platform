@@ -5,6 +5,9 @@ from unittest.mock import MagicMock, patch
 
 # Add apps/worker to path
 worker_path = Path(__file__).resolve().parents[2] / "apps" / "worker"
+for mod in list(sys.modules.keys()):
+    if mod == "src" or mod.startswith("src."):
+        del sys.modules[mod]
 sys.path.insert(0, str(worker_path))
 
 from src.worker import get_redis_connection

@@ -5,6 +5,9 @@ from fastapi.testclient import TestClient
 
 # Add apps/ai-worker to path
 ai_worker_path = Path(__file__).resolve().parents[2] / "apps" / "ai-worker"
+for mod in list(sys.modules.keys()):
+    if mod == "src" or mod.startswith("src."):
+        del sys.modules[mod]
 sys.path.insert(0, str(ai_worker_path))
 
 from src.main import app

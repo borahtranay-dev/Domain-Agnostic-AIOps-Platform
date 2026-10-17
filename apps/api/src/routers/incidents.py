@@ -103,3 +103,41 @@ def get_incident(incident_id: str, db: Session = Depends(get_db)):
         opened_at=db_incident.opened_at,
         resolved_at=db_incident.resolved_at,
     )
+
+
+@router.patch(
+    "/{incident_id}/status",
+    response_model=Incident,
+    summary="Update incident status",
+    description="Updates the lifecycle state of an incident (e.g., awaiting_approval, resolved). Sets resolved_at automatically when resolved.",
+)
+def update_incident_status(
+    incident_id: str,
+    new_status: IncidentStatus = Query(..., alias="status", description="New lifecycle status"),
+    db: Session = Depends(get_db),
+):
+    from aiops_contracts.common import utc_now
+
+    db_incident = db.query(IncidentModel).filter(IncidentModel.id == incident_id).first()
+    if not db_incident:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Incident '{incident_id}' not found")
+
+    db_incident.status = new_status.value
+    if new_status == IncidentStatus.RESOLVED and db_incident.resolved_at is None:
+        db_incident.resolved_at = utc_now()
+
+    db.commit()
+    db.refresh(db_incident)
+
+    return Incident(
+        id=db_incident.id,
+        title=db_incident.title,
+        status=IncidentStatus(db_incident.status),
+        severity=Severity(db_incident.severity),
+        pipeline_id=db_incident.pipeline_id,
+        service_id=db_incident.service_id,
+        environment_id=db_incident.environment_id,
+        event_ids=db_incident.event_ids or [],
+        opened_at=db_incident.opened_at,
+        resolved_at=db_incident.resolved_at,
+    )

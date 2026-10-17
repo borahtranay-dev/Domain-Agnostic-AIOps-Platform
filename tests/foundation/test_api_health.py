@@ -7,6 +7,9 @@ from fastapi.testclient import TestClient
 
 # Add apps/api to path
 api_path = Path(__file__).resolve().parents[2] / "apps" / "api"
+for mod in list(sys.modules.keys()):
+    if mod == "src" or mod.startswith("src."):
+        del sys.modules[mod]
 sys.path.insert(0, str(api_path))
 
 from src.main import app

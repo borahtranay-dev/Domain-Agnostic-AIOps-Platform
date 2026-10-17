@@ -19,8 +19,12 @@ from pathlib import Path
 
 # Add apps/api to path so src.main and src.database import cleanly
 api_path = Path(__file__).resolve().parents[1] / "apps" / "api"
-if str(api_path) not in sys.path:
-    sys.path.insert(0, str(api_path))
+for mod in list(sys.modules.keys()):
+    if mod == "src" or mod.startswith("src."):
+        del sys.modules[mod]
+if str(api_path) in sys.path:
+    sys.path.remove(str(api_path))
+sys.path.insert(0, str(api_path))
 
 from src.main import app
 from src.database import Base, get_db

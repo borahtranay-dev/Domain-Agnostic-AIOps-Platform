@@ -17,14 +17,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Add apps/ai-worker to path and ensure clean namespace isolation
-ai_worker_path = Path(__file__).resolve().parents[1] / "apps" / "ai-worker"
-if str(ai_worker_path) not in sys.path:
-    sys.path.insert(0, str(ai_worker_path))
-
-# In microservices sharing 'src/', purge previously cached 'src' module
 for mod in list(sys.modules.keys()):
     if mod == "src" or mod.startswith("src."):
         del sys.modules[mod]
+
+ai_worker_path = Path(__file__).resolve().parents[1] / "apps" / "ai-worker"
+if str(ai_worker_path) in sys.path:
+    sys.path.remove(str(ai_worker_path))
+sys.path.insert(0, str(ai_worker_path))
 
 from src.main import app
 from src.runbook_store import RunbookVectorStore, SYSTEM_RUNBOOKS
