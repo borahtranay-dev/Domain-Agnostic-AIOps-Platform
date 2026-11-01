@@ -62,6 +62,7 @@ docker-data/
 postgres-data/
 redis-data/
 
-# Miscellaneous
+# Miscellaneous & Personal Notes
 PROJECT_KNOWLEDGE_TRANSFER.md
 ~$*.docx
+*.docx
