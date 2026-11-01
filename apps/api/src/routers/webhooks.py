@@ -19,6 +19,7 @@ from aiops_contracts import Event, EventType
 from src.database import get_db
 from src.models.event import EventModel
 from src.routers.events import push_to_redis_queue
+from src.correlation_engine import EventCorrelationEngine
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,9 @@ async def ingest_prometheus_webhook(
         db.add(db_event)
         created_events.append(event_obj)
 
+        # Correlate event into an Incident and extract evidence bundle
+        EventCorrelationEngine.process_event(event_obj, db)
+
         # Enqueue into Redis for worker
         push_to_redis_queue(event_obj)
 
@@ -225,6 +229,9 @@ async def ingest_github_webhook(
     db.commit()
     db.refresh(db_event)
 
+    # Auto-correlate into an Incident
+    EventCorrelationEngine.process_event(event_obj, db)
+
     push_to_redis_queue(event_obj)
     return event_obj
 
@@ -283,7 +290,7 @@ async def ingest_generic_webhook(
     allowed_operational_keys = {
         "service", "service_name", "app", "service_id", "environment", "env",
         "environment_id", "message", "error", "summary", "description",
-        "source", "reporter", "cpu_usage", "memory_mb", "latency_ms", "host",
+        "source", "reporter", "severity", "cpu_usage", "memory_mb", "latency_ms", "host",
         "timestamp", "level", "stack_trace"
     }
     clean_payload = {
@@ -317,6 +324,9 @@ async def ingest_generic_webhook(
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
+
+    # Auto-correlate into an Incident
+    EventCorrelationEngine.process_event(event_obj, db)
 
     push_to_redis_queue(event_obj)
     return event_obj
