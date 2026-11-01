@@ -77,9 +77,9 @@ The sequential methodology provides a controlled point at which shared contracts
 |---|---|---|---|
 | P0 | Governance & Repository Bootstrap | Establish rules, ownership, repository structure | **COMPLETE** |
 | P1 | Technical Foundation | Working local development environment; all applications boot and connect | **COMPLETE** |
-| P2 | Contract & Domain Foundation | Shared API/event schemas, domain model, database schema | **NOT STARTED** |
-| P3 | Parallel Component Construction | Each member builds their core component against shared contracts | **NOT STARTED** |
-| P4 | Event & Incident Pipeline | Real webhook ingestion and incident lifecycle | **NOT STARTED** |
+| P2 | Contract & Domain Foundation | Shared API/event schemas, domain model, database schema | **COMPLETE** |
+| P3 | Parallel Component Construction | Each member builds their core component against shared contracts | **COMPLETE** |
+| P4 | Event & Incident Pipeline | Real webhook ingestion and incident lifecycle | **COMPLETE** |
 | P5 | AI Diagnosis & RAG | Real RAG pipeline analyzing real incidents | **NOT STARTED** |
 | P6 | Remediation & GitHub Automation | AI-suggested fixes become real, human-approved GitHub PRs | **NOT STARTED** |
 | P7 | Developer Cockpit | Full dashboard UI for the incident/approval workflow | **NOT STARTED** |
@@ -211,7 +211,7 @@ P2 is the point at which the shared contracts and domain foundation are establis
 
 ## Status
 
-**NOT STARTED**
+**COMPLETE**
 
 ---
 
@@ -271,7 +271,7 @@ Each component must use the shared contracts rather than creating independent ve
 
 ## Status
 
-**NOT STARTED**
+**COMPLETE**
 
 ---
 
@@ -309,7 +309,7 @@ Provider-specific event formats should be converted into the platform's shared e
 
 ## Status
 
-**NOT STARTED**
+**COMPLETE**
 
 ---
 
@@ -711,14 +711,20 @@ The project is currently positioned at:
 ```text
 P0 — COMPLETE
         ↓
-P1 — COMPLETE / INITIAL FOUNDATION
+P1 — COMPLETE
         ↓
-P2 — NEXT
+P2 — COMPLETE
+        ↓
+P3 — COMPLETE
+        ↓
+P4 — COMPLETE
+        ↓
+P5 — NEXT
 ```
 
-The current foundation includes the four application skeletons and their PostgreSQL/Redis connectivity.
+The event and incident pipeline, webhook adapters (Prometheus, GitHub, Generic), temporal correlation engine, and Redis queue consumers are verified and complete.
 
-The next substantive work is therefore the shared **Contract & Domain Foundation**, not independent implementation of the later AI/remediation workflow.
+The next substantive work is therefore **Phase P5 (AI Diagnosis & RAG)**.
 
 ---
 
