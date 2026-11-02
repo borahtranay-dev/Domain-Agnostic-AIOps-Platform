@@ -710,7 +710,7 @@ The product roadmap follows P0–P12.
 | P5 | AI diagnosis and RAG | Complete |
 | P6 | Remediation and GitHub automation | Complete |
 | P7 | Developer Cockpit | Complete |
-| P8 | End-to-end integration | Next |
+| P8 | End-to-end integration | In Progress |
 | P9 | Security/performance/reliability hardening | Not started |
 | P10 | Staging and rollback demonstration | Not started |
 | P11 | Production release | Not started |
