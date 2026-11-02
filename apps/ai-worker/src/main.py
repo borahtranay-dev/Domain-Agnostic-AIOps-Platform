@@ -53,7 +53,7 @@ def root():
         "version": settings.VERSION,
         "status": "online",
         "langchain_core_version": langchain_core.__version__,
-        "phase": "P3 Component Construction - AI Diagnosis & RAG",
+        "phase": "P5 AI Diagnosis & RAG Engine",
         "indexed_runbooks": len(runbook_store.runbooks),
     }
 

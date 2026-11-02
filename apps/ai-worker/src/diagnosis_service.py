@@ -111,12 +111,18 @@ class DiagnosisEngine:
         confidence = round(raw_confidence, 2)
 
         # 6. Construct P2 Diagnosis Contract Model
+        uncertainty = None
+        if confidence < 0.85:
+            uncertainty = f"Retrieval score {relevance_score:.2f} with {len(evidence_list)} factual evidence artifact(s)."
+
         diagnosis = Diagnosis(
             incident_id=incident.id,
             probable_root_cause=top_match.root_cause_explanation,
             confidence=confidence,
             supporting_evidence_ids=supporting_ids,
             contradicting_evidence_ids=[],
+            uncertainty_notes=uncertainty,
+            recommended_remediation=top_match.recommended_action,
         )
 
         # 7. Map recommended action type to ActionType Enum

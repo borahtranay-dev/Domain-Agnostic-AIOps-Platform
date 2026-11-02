@@ -141,3 +141,117 @@ def update_incident_status(
         opened_at=db_incident.opened_at,
         resolved_at=db_incident.resolved_at,
     )
+
+
+@router.post(
+    "/{incident_id}/diagnose",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Trigger RAG root-cause diagnosis on an incident",
+    description="Harvests all attached evidence for the incident, invokes the RAG AI diagnosis engine, persists DiagnosisModel, and advances status to awaiting_approval.",
+)
+def trigger_incident_diagnosis(
+    incident_id: str,
+    db: Session = Depends(get_db),
+):
+    """Harvests attached evidence, invokes AI RAG diagnosis, and persists DiagnosisModel."""
+    from datetime import datetime, timezone
+    from src.models.evidence import EvidenceModel
+    from src.models.diagnosis import DiagnosisModel
+    from aiops_contracts import Evidence, EvidenceKind
+
+    db_incident = db.query(IncidentModel).filter(IncidentModel.id == incident_id).first()
+    if not db_incident:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident '{incident_id}' not found",
+        )
+
+    db_evidences = db.query(EvidenceModel).filter(EvidenceModel.incident_id == incident_id).all()
+    evidence_objs = [
+        Evidence(
+            id=ev.id,
+            incident_id=ev.incident_id,
+            kind=EvidenceKind(ev.kind) if hasattr(EvidenceKind, ev.kind.upper()) else EvidenceKind.LOG,
+            source=ev.source,
+            content=ev.content,
+            collected_at=ev.captured_at,
+        )
+        for ev in db_evidences
+    ]
+
+    incident_obj = Incident(
+        id=db_incident.id,
+        title=db_incident.title,
+        status=IncidentStatus(db_incident.status),
+        severity=Severity(db_incident.severity),
+        pipeline_id=db_incident.pipeline_id,
+        service_id=db_incident.service_id,
+        environment_id=db_incident.environment_id,
+        event_ids=db_incident.event_ids or [],
+        opened_at=db_incident.opened_at,
+        resolved_at=db_incident.resolved_at,
+    )
+
+    from src.services.ai_client import diagnose_incident_via_ai
+    diag_result = diagnose_incident_via_ai(incident_obj, evidence_objs)
+    diag_data = diag_result["diagnosis"]
+
+    existing_diag = db.query(DiagnosisModel).filter(DiagnosisModel.incident_id == incident_id).first()
+    if existing_diag:
+        existing_diag.probable_root_cause = diag_data["probable_root_cause"]
+        existing_diag.supporting_evidence_ids = diag_data.get("supporting_evidence_ids", [])
+        existing_diag.confidence = diag_data.get("confidence", 0.0)
+        existing_diag.uncertainty_notes = diag_data.get("uncertainty_notes")
+        existing_diag.recommended_remediation = diag_data.get("recommended_remediation")
+    else:
+        new_diag = DiagnosisModel(
+            id=diag_data["id"],
+            incident_id=incident_id,
+            probable_root_cause=diag_data["probable_root_cause"],
+            supporting_evidence_ids=diag_data.get("supporting_evidence_ids", []),
+            contradicting_evidence_ids=diag_data.get("contradicting_evidence_ids", []),
+            confidence=diag_data.get("confidence", 0.0),
+            uncertainty_notes=diag_data.get("uncertainty_notes"),
+            recommended_remediation=diag_data.get("recommended_remediation"),
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(new_diag)
+
+    # Advance incident lifecycle to awaiting_approval
+    db_incident.status = IncidentStatus.AWAITING_APPROVAL.value
+    db.commit()
+    db.refresh(db_incident)
+
+    return diag_result
+
+
+@router.get(
+    "/{incident_id}/diagnosis",
+    response_model=dict,
+    summary="Get incident diagnosis",
+    description="Retrieves the persisted AI diagnosis record for the specified incident.",
+)
+def get_incident_diagnosis(
+    incident_id: str,
+    db: Session = Depends(get_db),
+):
+    """Retrieves persisted DiagnosisModel record for an incident."""
+    from src.models.diagnosis import DiagnosisModel
+    db_diag = db.query(DiagnosisModel).filter(DiagnosisModel.incident_id == incident_id).first()
+    if not db_diag:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No diagnosis found for incident '{incident_id}'",
+        )
+    return {
+        "id": db_diag.id,
+        "incident_id": db_diag.incident_id,
+        "probable_root_cause": db_diag.probable_root_cause,
+        "supporting_evidence_ids": db_diag.supporting_evidence_ids,
+        "contradicting_evidence_ids": db_diag.contradicting_evidence_ids,
+        "confidence": db_diag.confidence,
+        "uncertainty_notes": db_diag.uncertainty_notes,
+        "recommended_remediation": db_diag.recommended_remediation,
+        "created_at": db_diag.created_at.isoformat() if db_diag.created_at else None,
+    }

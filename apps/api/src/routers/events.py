@@ -23,7 +23,7 @@ router = APIRouter(prefix="/events", tags=["Events"])
 def push_to_redis_queue(event: Event) -> bool:
     """Best-effort enqueue to Redis events_queue for background worker."""
     try:
-        r = redis.from_url(settings.REDIS_URL, socket_timeout=2)
+        r = redis.from_url(settings.REDIS_URL, socket_timeout=1, socket_connect_timeout=0.2)
         r.rpush("aiops:events_queue", event.model_dump_json())
         return True
     except Exception as e:

@@ -23,6 +23,8 @@ for mod in list(sys.modules.keys()):
 
 from src.main import app
 from src.database import Base, get_db
+from src.models.incident import IncidentModel
+from src.models.evidence import EvidenceModel
 from aiops_contracts import EventType
 
 # Setup test in-memory SQLite database
@@ -103,9 +105,6 @@ def test_prometheus_webhook_ingestion(client):
     assert event["payload"]["status"] == "firing"
 
     # Verify Incident and Evidence auto-generation
-    from src.models.incident import IncidentModel
-    from src.models.evidence import EvidenceModel
-
     db = TestingSessionLocal()
     incidents = db.query(IncidentModel).filter(IncidentModel.service_id == "auth-service").all()
     assert len(incidents) == 1
@@ -161,9 +160,6 @@ def test_github_deployment_webhook_ingestion(client):
     assert data["payload"]["commit"] == "a1b2c3d4e5f6"
 
     # Verify Incident created
-    from src.models.incident import IncidentModel
-    from src.models.evidence import EvidenceModel
-
     db = TestingSessionLocal()
     inc = db.query(IncidentModel).filter(IncidentModel.service_id == "payment-api").first()
     assert inc is not None
@@ -211,9 +207,6 @@ def test_generic_application_webhook_ingestion(client):
 # ─────────────────────────────────────────────────────────────────────────────
 def test_temporal_event_correlation_and_severity_upgrade(client):
     """Verify that multiple events for the same service within window correlate to 1 incident."""
-    from src.models.incident import IncidentModel
-    from src.models.evidence import EvidenceModel
-
     # Event 1: Warning level alert
     event1_payload = {
         "service": "auth-service",

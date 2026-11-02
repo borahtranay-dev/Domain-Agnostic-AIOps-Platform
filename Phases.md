@@ -80,8 +80,8 @@ The sequential methodology provides a controlled point at which shared contracts
 | P2 | Contract & Domain Foundation | Shared API/event schemas, domain model, database schema | **COMPLETE** |
 | P3 | Parallel Component Construction | Each member builds their core component against shared contracts | **COMPLETE** |
 | P4 | Event & Incident Pipeline | Real webhook ingestion and incident lifecycle | **COMPLETE** |
-| P5 | AI Diagnosis & RAG | Real RAG pipeline analyzing real incidents | **NOT STARTED** |
-| P6 | Remediation & GitHub Automation | AI-suggested fixes become real, human-approved GitHub PRs | **NOT STARTED** |
+| P5 | AI Diagnosis & RAG | Real RAG pipeline analyzing real incidents | **COMPLETE** |
+| P6 | Remediation & GitHub Automation | AI-suggested fixes become real, human-approved GitHub PRs | **NEXT** |
 | P7 | Developer Cockpit | Full dashboard UI for the incident/approval workflow | **NOT STARTED** |
 | P8 | End-to-End Integration | Full golden-path testing across all components | **NOT STARTED** |
 | P9 | Hardening | Security, performance, and reliability pass | **NOT STARTED** |
@@ -350,7 +350,7 @@ The RAG system grounds diagnosis; it does not make the diagnosis automatically i
 
 ## Status
 
-**NOT STARTED**
+**COMPLETE**
 
 ---
 

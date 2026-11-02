@@ -97,6 +97,36 @@ SYSTEM_RUNBOOKS: List[Runbook] = [
         recommended_action_type="scale_service",
         remediation_params={"target_replicas": 3, "service": "api"},
     ),
+    Runbook(
+        id="RB-006",
+        title="Container Image Startup Failure / Readiness Probe Unhealthy",
+        symptoms=[
+            "failed readiness probe",
+            "readiness probe on startup",
+            "container image failed readiness probe",
+            "health probe failed for container",
+            "liveness probe failed",
+        ],
+        root_cause_explanation="Container image failed readiness probe on startup due to an unhandled initialization exception or port misconfiguration.",
+        recommended_action="Roll back container deployment to previous stable release and inspect initialization logs.",
+        recommended_action_type="rollback",
+        remediation_params={"target_revision": "PREVIOUS_STABLE", "service": "deployment"},
+    ),
+    Runbook(
+        id="RB-007",
+        title="Message Queue / Worker Connection Timeout",
+        symptoms=[
+            "Redis connection timeout",
+            "connection timeout after retries",
+            "consumer rebalance timeout",
+            "broker unreachable",
+            "queue worker timeout",
+        ],
+        root_cause_explanation="Background worker failed to maintain active heartbeat connection with Redis message queue due to timeout or network latency.",
+        recommended_action="Restart background worker consumer process and verify Redis queue availability.",
+        recommended_action_type="container_restart",
+        remediation_params={"service": "worker", "restart_policy": "always"},
+    ),
 ]
 
 
