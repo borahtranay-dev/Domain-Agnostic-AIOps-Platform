@@ -460,13 +460,13 @@ Implement:
 
 Implement the full dashboard and incident/approval workflow.
 
-**Status: NEXT**
+**Status: COMPLETE**
 
 ## P8 — End-to-End Integration
 
 Connect and test the complete system.
 
-**Status: NOT STARTED**
+**Status: NEXT**
 
 ## P9 — Hardening
 

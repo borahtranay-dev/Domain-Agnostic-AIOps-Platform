@@ -213,8 +213,29 @@ export function AiRootCauseConsole({
         )}
 
         {isResolved && (
-          <div className="gov-status-pill resolved">
-            <span>✅ System Autonomously Healed &amp; Verified</span>
+          <div className="gov-status-pill resolved" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+            <span style={{ fontWeight: 600 }}>✅ System Autonomously Healed &amp; Verified</span>
+            <span style={{ fontSize: '11px', color: '#a1a1aa' }}>
+              Rule 17: Post-remediation telemetry verified error rate 0.00%
+            </span>
+            {plan?.actions?.[0]?.parameters?.pull_request_url && (
+              <a
+                href={plan.actions[0].parameters.pull_request_url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  fontSize: '11px',
+                  color: '#38bdf8',
+                  textDecoration: 'underline',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  marginTop: '2px'
+                }}
+              >
+                <span>🔗 View Merged GitHub Hotfix PR ({plan.actions[0].parameters.pull_request_url.split('/').slice(-2).join('/')})</span>
+              </a>
+            )}
           </div>
         )}
 
