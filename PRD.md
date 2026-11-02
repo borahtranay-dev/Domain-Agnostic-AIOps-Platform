@@ -703,13 +703,13 @@ The product roadmap follows P0–P12.
 | Phase | Product outcome | Current status |
 |---|---|---|
 | P0 | Governance and repository bootstrap | Complete |
-| P1 | Technical foundation | Complete / initial foundation |
-| P2 | Contracts and domain foundation | Next |
-| P3 | Parallel component construction | Not started |
-| P4 | Event and incident pipeline | Not started |
-| P5 | AI diagnosis and RAG | Not started |
-| P6 | Remediation and GitHub automation | Not started |
-| P7 | Developer Cockpit | Not started |
+| P1 | Technical foundation | Complete |
+| P2 | Contracts and domain foundation | Complete |
+| P3 | Parallel component construction | Complete |
+| P4 | Event and incident pipeline | Complete |
+| P5 | AI diagnosis and RAG | Complete |
+| P6 | Remediation and GitHub automation | Complete |
+| P7 | Developer Cockpit | Next |
 | P8 | End-to-end integration | Not started |
 | P9 | Security/performance/reliability hardening | Not started |
 | P10 | Staging and rollback demonstration | Not started |

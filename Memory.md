@@ -418,7 +418,7 @@ Purpose:
 - generic domain model,
 - database schema.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 P2 is the critical contract/domain foundation phase.
 
@@ -426,7 +426,7 @@ P2 is the critical contract/domain foundation phase.
 
 Each member implements their component against the shared contracts.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 ## P4 — Event & Incident Pipeline
 
@@ -435,7 +435,7 @@ Implement:
 - real webhook ingestion,
 - incident lifecycle.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 ## P5 — AI Diagnosis & RAG
 
@@ -444,7 +444,7 @@ Implement:
 - real RAG,
 - diagnosis against real incidents.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 ## P6 — Remediation & GitHub Automation
 
@@ -454,13 +454,13 @@ Implement:
 - human approval,
 - GitHub pull-request workflow.
 
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 ## P7 — Developer Cockpit
 
 Implement the full dashboard and incident/approval workflow.
 
-**Status: NOT STARTED**
+**Status: NEXT**
 
 ## P8 — End-to-End Integration
 

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.database import Base, engine, check_database_connection
-from src.routers import events_router, incidents_router, webhooks_router
+from src.routers import events_router, incidents_router, webhooks_router, remediation_router
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +43,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register Phase P3 & P4 Routers under /api/v1
+# Register Phase P3, P4 & P6 Routers under /api/v1
 app.include_router(events_router, prefix="/api/v1")
 app.include_router(incidents_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
+app.include_router(remediation_router, prefix="/api/v1")
 
 
 @app.get("/")
