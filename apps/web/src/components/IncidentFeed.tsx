@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Incident, Severity, IncidentStatus } from "../types";
+import { Incident } from "../types";
 
 interface IncidentFeedProps {
   incidents: Incident[];
@@ -10,21 +10,50 @@ interface IncidentFeedProps {
 }
 
 export function IncidentFeed({ incidents, selectedId, onSelect }: IncidentFeedProps) {
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filtered = incidents.filter((inc) => {
     if (severityFilter !== "all" && inc.severity !== severityFilter) return false;
     if (statusFilter !== "all" && inc.status !== statusFilter) return false;
+    if (searchTerm.trim() !== "") {
+      const q = searchTerm.toLowerCase();
+      const matchTitle = inc.title.toLowerCase().includes(q);
+      const matchId = inc.id.toLowerCase().includes(q);
+      const matchService = (inc.service_id || "").toLowerCase().includes(q);
+      if (!matchTitle && !matchId && !matchService) return false;
+    }
     return true;
   });
 
   return (
     <div className="incident-feed-card">
       <div className="feed-header">
-        <div>
+        <div className="feed-title-wrap">
           <h2 className="feed-title">Real-Time Incident Stream</h2>
-          <p className="feed-subtitle">{filtered.length} correlated failure signals active</p>
+          <span className="feed-count-pill">{filtered.length} active</span>
+        </div>
+
+        {/* Search input for instant teacher demonstration */}
+        <div className="feed-search-box">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            className="feed-search-input"
+            placeholder="Search service, ID, error..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button 
+              className="search-clear-btn" 
+              onClick={() => setSearchTerm("")}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Filters */}
@@ -35,10 +64,10 @@ export function IncidentFeed({ incidents, selectedId, onSelect }: IncidentFeedPr
             onChange={(e) => setSeverityFilter(e.target.value)}
           >
             <option value="all">All Severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="critical">🔴 Critical</option>
+            <option value="high">🟠 High</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="low">🟢 Low</option>
           </select>
 
           <select 
@@ -47,9 +76,10 @@ export function IncidentFeed({ incidents, selectedId, onSelect }: IncidentFeedPr
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">All Statuses</option>
-            <option value="awaiting_approval">Awaiting Approval</option>
-            <option value="diagnosing">Diagnosing</option>
-            <option value="resolved">Resolved</option>
+            <option value="awaiting_approval">⏳ Awaiting Approval</option>
+            <option value="diagnosing">🧠 Diagnosing</option>
+            <option value="open">📡 Open</option>
+            <option value="resolved">✅ Resolved</option>
           </select>
         </div>
       </div>
@@ -88,7 +118,7 @@ export function IncidentFeed({ incidents, selectedId, onSelect }: IncidentFeedPr
                   🌐 {inc.environment_id || "prod"}
                 </span>
                 <span className="events-count">
-                  ⚡ {inc.event_ids.length} Telemetry Events
+                  ⚡ {inc.event_ids.length} Events
                 </span>
               </div>
             </div>
@@ -97,7 +127,18 @@ export function IncidentFeed({ incidents, selectedId, onSelect }: IncidentFeedPr
 
         {filtered.length === 0 && (
           <div className="feed-empty">
-            <p>No incidents match the selected filter criteria.</p>
+            <span className="empty-feed-icon">🔍</span>
+            <p>No incidents match the search criteria.</p>
+            <button 
+              className="btn-reset-filters"
+              onClick={() => {
+                setSearchTerm("");
+                setSeverityFilter("all");
+                setStatusFilter("all");
+              }}
+            >
+              Reset Filters
+            </button>
           </div>
         )}
       </div>

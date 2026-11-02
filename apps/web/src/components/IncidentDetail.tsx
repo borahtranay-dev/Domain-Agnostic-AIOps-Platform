@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Incident, Evidence, Diagnosis, RemediationPlan } from "../types";
+import { PipelineStepper } from "./PipelineStepper";
 
 interface IncidentDetailProps {
   incident?: Incident;
@@ -10,6 +11,7 @@ interface IncidentDetailProps {
   plan?: RemediationPlan;
   onApprove: (incidentId: string) => void;
   onReject: (incidentId: string) => void;
+  onDiagnose?: (incidentId: string) => void;
 }
 
 export function IncidentDetail({
@@ -19,6 +21,7 @@ export function IncidentDetail({
   plan,
   onApprove,
   onReject,
+  onDiagnose,
 }: IncidentDetailProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "evidence" | "ai_diagnosis" | "governance">("overview");
@@ -43,6 +46,7 @@ export function IncidentDetail({
   const isAwaitingApproval = incident.status === "awaiting_approval";
   const isResolved = incident.status === "resolved";
   const isExecuting = incident.status === "executing";
+  const isOpenOrDiagnosing = incident.status === "open" || incident.status === "diagnosing";
 
   return (
     <div className="detail-card">
@@ -69,17 +73,33 @@ export function IncidentDetail({
         </div>
 
         {/* Quick Action in Header */}
-        {isAwaitingApproval && (
-          <button 
-            onClick={() => onApprove(incident.id)}
-            className="btn-approve-primary pulse-btn"
-          >
-            ✓ Approve &amp; Heal System
-          </button>
-        )}
+        <div className="header-action-group">
+          {isOpenOrDiagnosing && onDiagnose && (
+            <button 
+              onClick={() => onDiagnose(incident.id)}
+              className="btn-diagnose-primary pulse-btn"
+              title="Trigger LangChain RAG vector diagnosis on telemetry evidence"
+            >
+              🧠 Run AI Diagnosis
+            </button>
+          )}
+
+          {isAwaitingApproval && (
+            <button 
+              onClick={() => onApprove(incident.id)}
+              className="btn-approve-primary pulse-btn"
+              title="Human approval: execute automated self-healing fix"
+            >
+              ✓ Approve &amp; Heal System
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Tabs */}
+      {/* Visual SRE Stepper for Teacher & Evaluator Clarity */}
+      <PipelineStepper status={incident.status} />
+
+      {/* Navigation Tabs */}
       <div className="detail-tabs">
         <button
           className={`tab-btn ${activeTab === "overview" ? "tab-btn-active" : ""}`}
@@ -126,7 +146,7 @@ export function IncidentDetail({
               <span className="alert-icon-lg">⚙️</span>
               <div>
                 <strong>Executing Automated Remediation...</strong>
-                <p>Human approved the fix. Dispatched automated config patch to Kubernetes cluster.</p>
+                <p>Human approved the fix. Dispatched automated config patch / rollback action to cluster.</p>
               </div>
             </div>
           )}
@@ -135,8 +155,8 @@ export function IncidentDetail({
             <div className="alert-box alert-rose">
               <span className="alert-icon-lg">⚠️</span>
               <div>
-                <strong>Human Approval Required Before Remediation</strong>
-                <p>AI has diagnosed root cause with {confidencePct}% confidence. Under enterprise safety policy, consequential actions must be approved by SRE.</p>
+                <strong>Human Approval Required (Safety Policy Active)</strong>
+                <p>AI has diagnosed root cause with {confidencePct}% confidence. Under enterprise safety policy, consequential actions must be approved by SRE before execution.</p>
               </div>
             </div>
           )}
@@ -165,7 +185,17 @@ export function IncidentDetail({
                 </div>
               </div>
             ) : (
-              <p className="text-dim">AI worker is currently analyzing telemetry logs...</p>
+              <div className="ai-pending-box">
+                <p className="text-dim">AI worker is currently analyzing telemetry logs...</p>
+                {onDiagnose && (
+                  <button 
+                    onClick={() => onDiagnose(incident.id)}
+                    className="btn-trigger-inline"
+                  >
+                    ⚡ Analyze with LangChain RAG Now
+                  </button>
+                )}
+              </div>
             )}
           </div>
 

@@ -70,7 +70,10 @@ export interface Diagnosis {
   probable_root_cause: string;
   confidence: number;
   supporting_evidence_ids: string[];
-  contradicting_evidence_ids: string[];
+  contradicting_evidence_ids?: string[];
+  recommended_remediation?: string;
+  uncertainty_notes?: string;
+  created_at?: string;
 }
 
 export interface RemediationAction {
@@ -89,15 +92,20 @@ export interface RemediationPlan {
   diagnosis_id: string;
   status: PlanStatus;
   rationale: string;
+  risk_level?: Severity;
   actions: RemediationAction[];
   created_at: string;
+  executed_at?: string;
 }
 
 export interface ServiceTopologyStatus {
   name: string;
-  subsystem: string;
-  owner: string;
+  role: string;
+  tier: string;
   technology: string;
-  status: "connected" | "checking" | "error";
+  status: "connected" | "checking" | "error" | "degraded";
+  latency: string;
+  uptime: string;
+  throughput: string;
   details: string;
 }
