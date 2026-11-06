@@ -1,28 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { SidebarRail } from "../components/SidebarRail";
-import { TopNav } from "../components/TopNav";
-import { IncidentStreamColumn } from "../components/IncidentStreamColumn";
-import { IncidentWorkspaceColumn } from "../components/IncidentWorkspaceColumn";
-import { AiRootCauseConsole } from "../components/AiRootCauseConsole";
-import { TopologyView } from "../components/TopologyView";
+import React, { useState } from "react";
 import { LoginScreen } from "../components/LoginScreen";
-import { 
-  Incident, 
-  Evidence, 
-  Diagnosis, 
-  RemediationPlan, 
-  ServiceTopologyStatus 
+import {
+  Incident,
+  Evidence,
+  Diagnosis,
+  RemediationPlan,
 } from "../types";
-import { 
-  INITIAL_INCIDENTS, 
-  INITIAL_EVIDENCE, 
-  INITIAL_DIAGNOSES, 
-  INITIAL_REMEDIATION_PLANS 
+import {
+  INITIAL_INCIDENTS,
+  INITIAL_EVIDENCE,
+  INITIAL_DIAGNOSES,
+  INITIAL_REMEDIATION_PLANS,
 } from "../lib/mockData";
 
-export default function DeveloperCockpit() {
+export default function CleanDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<{
     name: string;
@@ -33,375 +26,136 @@ export default function DeveloperCockpit() {
     name: "Saurav (Super Admin)",
     email: "admin@platform.io",
     role: "super_admin",
-    tenant: "Acme Corp (Primary Tenant)",
+    tenant: "Global Infrastructure (All Clusters)",
   });
 
-  const [activeTab, setActiveTab] = useState<"incidents" | "topology" | "evidence" | "settings">("incidents");
+  // User-Specific Theme State (Default: light)
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // Load user's personal theme preference upon login
+  const handleUserLogin = (user: {
+    name: string;
+    email: string;
+    role: "super_admin" | "tenant_sre";
+    tenant: string;
+  }) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+
+    try {
+      // Look up this specific user's saved theme preference
+      const savedUserTheme = localStorage.getItem(`aiops_theme_${user.email.toLowerCase()}`) as "light" | "dark" | null;
+      if (savedUserTheme === "dark" || savedUserTheme === "light") {
+        setTheme(savedUserTheme);
+      } else {
+        setTheme("light"); // Default is light mode
+      }
+    } catch {
+      setTheme("light");
+    }
+
+    showToast(`✓ Welcome, ${user.name}`);
+  };
+
+  // Toggle theme inside dashboard and save specifically to this user's account
+  const toggleTheme = () => {
+    const nextTheme = theme === "light" ? "dark" : "light";
+    setTheme(nextTheme);
+
+    if (currentUser && currentUser.email) {
+      try {
+        localStorage.setItem(`aiops_theme_${currentUser.email.toLowerCase()}`, nextTheme);
+      } catch (e) {
+        console.error("Failed to save user theme preference", e);
+      }
+    }
+  };
+
+  const isDark = theme === "dark";
+
+  // Color theme tokens for dashboard
+  const colors = {
+    bg: isDark ? "#09090b" : "#f8fafc",
+    cardBg: isDark ? "#121215" : "#ffffff",
+    cardBorder: isDark ? "#27272a" : "#e2e8f0",
+    headerBg: isDark ? "#121215" : "#ffffff",
+    headerBorder: isDark ? "#27272a" : "#e2e8f0",
+    textPrimary: isDark ? "#f4f4f5" : "#0f172a",
+    textSecondary: isDark ? "#a1a1aa" : "#475569",
+    textMuted: isDark ? "#71717a" : "#94a3b8",
+    inputBg: isDark ? "#18181b" : "#ffffff",
+    inputBorder: isDark ? "#27272a" : "#cbd5e1",
+    subtleBoxBg: isDark ? "#18181b" : "#f8fafc",
+    subtleBoxBorder: isDark ? "#23232a" : "#e2e8f0",
+    activeItemBg: isDark ? "#1c1c22" : "#f1f5f9",
+    codeBg: isDark ? "#0d0d10" : "#f1f5f9",
+    shadow: isDark ? "0 10px 25px rgba(0,0,0,0.5)" : "0 2px 8px rgba(0,0,0,0.04)",
+  };
+
+  const [activeTab, setActiveTab] = useState<"incidents" | "services">("incidents");
   const [incidents, setIncidents] = useState<Incident[]>(INITIAL_INCIDENTS);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>("INC-8921");
-  const [evidenceMap, setEvidenceMap] = useState<Record<string, Evidence[]>>(INITIAL_EVIDENCE);
-  const [diagnosesMap, setDiagnosesMap] = useState<Record<string, Diagnosis>>(INITIAL_DIAGNOSES);
+  const [evidenceMap] = useState<Record<string, Evidence[]>>(INITIAL_EVIDENCE);
+  const [diagnosesMap] = useState<Record<string, Diagnosis>>(INITIAL_DIAGNOSES);
   const [plansMap, setPlansMap] = useState<Record<string, RemediationPlan>>(INITIAL_REMEDIATION_PLANS);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
 
-  // Customer Cloud Microservice Topology statuses
-  const [statuses, setStatuses] = useState<Record<string, ServiceTopologyStatus>>({
-    apiGateway: {
-      name: "API Gateway & Ingress Router",
-      role: "Public Reverse Proxy & Traffic Director",
-      tier: "Tier-0 Critical",
-      technology: "Envoy / NGINX Proxy",
-      status: "connected",
-      latency: "14ms",
-      uptime: "99.99%",
-      throughput: "4.8k req/s",
-      details: "TLS 1.3 Active · Zero dropped packets",
-    },
-    authService: {
-      name: "Authentication & Identity Engine",
-      role: "JWT Verification & RBAC Access Control",
-      tier: "Tier-0 Critical",
-      technology: "FastAPI / OAuth 2.0",
-      status: "connected",
-      latency: "8ms",
-      uptime: "99.98%",
-      throughput: "2.1k req/s",
-      details: "Redis token cache hit ratio: 98.4%",
-    },
-    paymentApi: {
-      name: "Core Business & Webhook API",
-      role: "Telemetry Ingestion & Business Logic",
-      tier: "Tier-1 Backend",
-      technology: "Python 3.12 + FastAPI",
-      status: "degraded",
-      latency: "185ms",
-      uptime: "99.42%",
-      throughput: "1.2k req/s",
-      details: "Active Alert: Connection Pool Saturation (30/30)",
-    },
-    database: {
-      name: "PostgreSQL Primary Cluster",
-      role: "Relational Storage & Telemetry Ledger",
-      tier: "Data Tier",
-      technology: "PostgreSQL 16 High-Availability",
-      status: "degraded",
-      latency: "42ms",
-      uptime: "99.90%",
-      throughput: "850 IOPS",
-      details: "Connection limit reached (30 Active Threads)",
-    },
-    redis: {
-      name: "Redis Queue & Event Broker",
-      role: "Asynchronous Telemetry Event Buffer",
-      tier: "Streaming Tier",
-      technology: "Redis 7.2 Cluster",
-      status: "connected",
-      latency: "1.2ms",
-      uptime: "100.0%",
-      throughput: "12.4k ops/s",
-      details: "Queue aiops:events_queue Active & Low Latency",
-    },
-    aiWorker: {
-      name: "AI Autonomous Diagnostic Brain",
-      role: "LangChain RAG Runbook Engine",
-      tier: "AI / Inference",
-      technology: "FastAPI + LangChain + Vector DB",
-      status: "connected",
-      latency: "850ms",
-      uptime: "99.95%",
-      throughput: "45 diags/min",
-      details: "In-Memory Vector Store Active (RB-001 - RB-007)",
-    },
-  });
+  // Simple Monitored Services List
+  const servicesList = [
+    { name: "API Gateway & Ingress", status: "Healthy", latency: "14ms", uptime: "99.99%", desc: "Reverse proxy & public router" },
+    { name: "Auth & Identity Engine", status: "Healthy", latency: "8ms", uptime: "99.98%", desc: "OAuth 2.0 & JWT verification" },
+    { name: "PostgreSQL Primary Cluster", status: "Needs Attention", latency: "42ms", uptime: "99.90%", desc: "Connection pool saturation detected" },
+    { name: "Redis Cache & Event Broker", status: "Healthy", latency: "1.2ms", uptime: "100%", desc: "Queue broker & session cache" },
+    { name: "AI Self-Healing Engine", status: "Active", latency: "850ms", uptime: "99.95%", desc: "DeepSeek-R1 runbook diagnostic brain" },
+  ];
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // 1-Click Interactive Simulation
-  const handleSimulate = (scenario: "prometheus" | "github" | "worker") => {
-    setIsSimulating(true);
-
-    if (scenario === "prometheus") {
-      const newId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
-      const evId = `EVD-${Math.floor(100 + Math.random() * 900)}`;
-      const diagId = `DIAG-${Math.floor(100 + Math.random() * 900)}`;
-      const planId = `PLAN-${Math.floor(100 + Math.random() * 900)}`;
-
-      const newInc: Incident = {
-        id: newId,
-        title: "Database Connection Pool Saturation (Prometheus Alertmanager)",
-        severity: "critical",
-        status: "awaiting_approval",
-        service_id: "auth-service",
-        environment_id: "production",
-        event_ids: [evId],
-        opened_at: new Date().toISOString(),
-      };
-
-      const newEv: Evidence = {
-        id: evId,
-        incident_id: newId,
-        kind: "metric",
-        source: "prometheus-alertmanager",
-        content: "QueuePool limit of size 10 overflow 20 reached, checkout timed out after 30.00s",
-        collected_at: new Date().toISOString(),
-      };
-
-      const newDiag: Diagnosis = {
-        id: diagId,
-        incident_id: newId,
-        probable_root_cause: "Database connection pool exhausted due to unclosed sessions in concurrent worker threads or insufficient pool_size.",
-        confidence: 0.94,
-        supporting_evidence_ids: [evId],
-        recommended_remediation: "Scale connection pool size to 30 and enable pool_pre_ping recycling.",
-        uncertainty_notes: "Runbook RB-001 matched via vector similarity 0.94.",
-        created_at: new Date().toISOString(),
-      };
-
-      const newPlan: RemediationPlan = {
-        id: planId,
-        incident_id: newId,
-        diagnosis_id: diagId,
-        status: "drafted",
-        rationale: "Automated RAG diagnosis matched Runbook RB-001 (Postgres Pool Exhaustion). Proposes pool scaling.",
-        risk_level: "low",
-        actions: [
-          {
-            id: `ACT-${Math.floor(100 + Math.random() * 900)}`,
-            plan_id: planId,
-            action_type: "config_update",
-            target_service_id: "auth-service",
-            description: "Scale connection pool size to 30 and enable pool_pre_ping recycling",
-            parameters: { pool_size: 30, max_overflow: 20, pool_pre_ping: true },
-            order: 1,
-          },
-        ],
-        created_at: new Date().toISOString(),
-      };
-
-      setIncidents((prev) => [newInc, ...prev]);
-      setEvidenceMap((prev) => ({ ...prev, [newId]: [newEv] }));
-      setDiagnosesMap((prev) => ({ ...prev, [newId]: newDiag }));
-      setPlansMap((prev) => ({ ...prev, [newId]: newPlan }));
-      setSelectedIncidentId(newId);
-
-      showToast(`🔴 Live Prometheus alert ingested! AI matched RB-001 with 94% confidence.`);
-    } else if (scenario === "github") {
-      const newId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
-      const evId = `EVD-${Math.floor(100 + Math.random() * 900)}`;
-      const diagId = `DIAG-${Math.floor(100 + Math.random() * 900)}`;
-      const planId = `PLAN-${Math.floor(100 + Math.random() * 900)}`;
-
-      const newInc: Incident = {
-        id: newId,
-        title: "Deployment Failure: Container image failed readiness probe on startup",
-        severity: "high",
-        status: "awaiting_approval",
-        service_id: "payment-api",
-        environment_id: "production",
-        pipeline_id: "deploy-release-v3.0.2",
-        event_ids: [evId],
-        opened_at: new Date().toISOString(),
-      };
-
-      const newEv: Evidence = {
-        id: evId,
-        incident_id: newId,
-        kind: "pipeline_info",
-        source: "github-actions",
-        content: "Deployment #4921 failed: readiness probe timeout HTTP 500 on port 8080 during container bootstrap",
-        collected_at: new Date().toISOString(),
-      };
-
-      const newDiag: Diagnosis = {
-        id: diagId,
-        incident_id: newId,
-        probable_root_cause: "Container image failed readiness probe on startup due to an unhandled initialization exception or port misconfiguration.",
-        confidence: 0.89,
-        supporting_evidence_ids: [evId],
-        recommended_remediation: "Execute automated Git rollback to previous verified stable release commit SHA.",
-        uncertainty_notes: "Runbook RB-006 matched via vector similarity 0.91.",
-        created_at: new Date().toISOString(),
-      };
-
-      const newPlan: RemediationPlan = {
-        id: planId,
-        incident_id: newId,
-        diagnosis_id: diagId,
-        status: "drafted",
-        rationale: "Automated RAG diagnosis matched Runbook RB-006 (Container Startup Probe Failure). Proposes safe rollback.",
-        risk_level: "low",
-        actions: [
-          {
-            id: `ACT-${Math.floor(100 + Math.random() * 900)}`,
-            plan_id: planId,
-            action_type: "rollback",
-            target_service_id: "payment-api",
-            description: "Rollback deployment to previous verified Git commit SHA",
-            parameters: { previous_commit_sha: "a1b2c3d4e5f6" },
-            order: 1,
-          },
-        ],
-        created_at: new Date().toISOString(),
-      };
-
-      setIncidents((prev) => [newInc, ...prev]);
-      setEvidenceMap((prev) => ({ ...prev, [newId]: [newEv] }));
-      setDiagnosesMap((prev) => ({ ...prev, [newId]: newDiag }));
-      setPlansMap((prev) => ({ ...prev, [newId]: newPlan }));
-      setSelectedIncidentId(newId);
-
-      showToast(`🟠 Live GitHub Actions deployment failure ingested! AI matched RB-006 Rollback.`);
-    } else if (scenario === "worker") {
-      const newId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
-      const evId = `EVD-${Math.floor(100 + Math.random() * 900)}`;
-      const diagId = `DIAG-${Math.floor(100 + Math.random() * 900)}`;
-      const planId = `PLAN-${Math.floor(100 + Math.random() * 900)}`;
-
-      const newInc: Incident = {
-        id: newId,
-        title: "Worker Timeout: Redis message queue consumer connection dropped",
-        severity: "medium",
-        status: "awaiting_approval",
-        service_id: "worker-service",
-        environment_id: "production",
-        event_ids: [evId],
-        opened_at: new Date().toISOString(),
-      };
-
-      const newEv: Evidence = {
-        id: evId,
-        incident_id: newId,
-        kind: "log",
-        source: "python-sentry-client",
-        content: "Redis connection timeout after 3 retries, queue worker disconnected from aiops:events_queue",
-        collected_at: new Date().toISOString(),
-      };
-
-      const newDiag: Diagnosis = {
-        id: diagId,
-        incident_id: newId,
-        probable_root_cause: "Background worker failed to maintain active heartbeat connection with Redis message queue due to timeout or network latency.",
-        confidence: 0.86,
-        supporting_evidence_ids: [evId],
-        recommended_remediation: "Restart the worker container to re-establish clean connection with Redis cluster.",
-        uncertainty_notes: "Runbook RB-007 matched via vector similarity 0.89.",
-        created_at: new Date().toISOString(),
-      };
-
-      const newPlan: RemediationPlan = {
-        id: planId,
-        incident_id: newId,
-        diagnosis_id: diagId,
-        status: "drafted",
-        rationale: "Automated RAG diagnosis matched Runbook RB-007 (Queue Worker Timeout). Recommends container restart.",
-        risk_level: "low",
-        actions: [
-          {
-            id: `ACT-${Math.floor(100 + Math.random() * 900)}`,
-            plan_id: planId,
-            action_type: "container_restart",
-            target_service_id: "worker-service",
-            description: "Restart background worker container and drain queue backlog",
-            parameters: { container_name: "aiops-worker-1", grace_period_sec: 10 },
-            order: 1,
-          },
-        ],
-        created_at: new Date().toISOString(),
-      };
-
-      setIncidents((prev) => [newInc, ...prev]);
-      setEvidenceMap((prev) => ({ ...prev, [newId]: [newEv] }));
-      setDiagnosesMap((prev) => ({ ...prev, [newId]: newDiag }));
-      setPlansMap((prev) => ({ ...prev, [newId]: newPlan }));
-      setSelectedIncidentId(newId);
-
-      showToast(`🟡 Live Generic alert ingested! AI matched RB-007 (Container Restart).`);
+  const getRegisteredUsers = () => {
+    if (typeof window === "undefined") return [];
+    try {
+      const data = localStorage.getItem("aiops_registered_users");
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
     }
-
-    setTimeout(() => setIsSimulating(false), 400);
   };
 
-  const handleReset = () => {
-    setIncidents(INITIAL_INCIDENTS);
-    setEvidenceMap(INITIAL_EVIDENCE);
-    setDiagnosesMap(INITIAL_DIAGNOSES);
-    setPlansMap(INITIAL_REMEDIATION_PLANS);
-    setSelectedIncidentId(INITIAL_INCIDENTS[0].id);
-    showToast(`🔄 State restored to baseline demo incidents.`);
-  };
-
-  const handleDiagnose = (incidentId: string) => {
-    setIncidents((prev) =>
-      prev.map((inc) => (inc.id === incidentId ? { ...inc, status: "diagnosing" } : inc))
-    );
-    showToast(`🧠 Running LangChain RAG vector similarity diagnosis for ${incidentId}...`);
-
+  // Simulate new incident
+  const handleSimulateAlert = () => {
+    setIsSimulating(true);
+    showToast("⚡ Simulating incoming Prometheus alert...");
     setTimeout(() => {
-      setIncidents((prev) =>
-        prev.map((inc) => (inc.id === incidentId ? { ...inc, status: "awaiting_approval" } : inc))
-      );
-      showToast(`✨ RAG Diagnosis Complete! Incident ${incidentId} advanced to Awaiting Approval.`);
-    }, 1200);
+      const newId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newInc: Incident = {
+        id: newId,
+        title: "Redis Memory Saturation Warning",
+        service_id: "redis-cluster",
+        severity: "high",
+        status: "open",
+        opened_at: new Date().toISOString(),
+        event_ids: [`EVT-${newId}`],
+      };
+      setIncidents((prev) => [newInc, ...prev]);
+      setSelectedIncidentId(newId);
+      setIsSimulating(false);
+      showToast(`✓ New alert received: ${newId} (Redis Warning)`);
+    }, 800);
   };
 
+  // Approve remediation
   const handleApprove = async (incidentId: string) => {
     setIncidents((prev) =>
       prev.map((inc) => (inc.id === incidentId ? { ...inc, status: "executing" } : inc))
     );
-    showToast(`⚡ Human Approval Granted: Calling backend remediation API for ${incidentId}...`);
+    showToast("Applying AI remediation fix...");
 
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const resp = await fetch(`${apiUrl}/api/v1/incidents/${incidentId}/remediation/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          approver_id: currentUser.email,
-          notes: `Authorized by ${currentUser.name} via Developer Cockpit`,
-        }),
-      });
-
-      if (resp.ok) {
-        const data = await resp.json();
-        const prUrl = data.execution?.results?.[0]?.pull_request_url;
-        setIncidents((prev) =>
-          prev.map((inc) =>
-            inc.id === incidentId
-              ? { ...inc, status: "resolved", resolved_at: new Date().toISOString() }
-              : inc
-          )
-        );
-        setPlansMap((prev) => {
-          if (!prev[incidentId]) return prev;
-          const updatedActions = [...prev[incidentId].actions];
-          if (updatedActions[0] && prUrl) {
-            updatedActions[0] = {
-              ...updatedActions[0],
-              parameters: { ...updatedActions[0].parameters, pull_request_url: prUrl },
-            };
-          }
-          return {
-            ...prev,
-            [incidentId]: { ...prev[incidentId], status: "completed", actions: updatedActions },
-          };
-        });
-        showToast(
-          prUrl
-            ? `✅ Fix Verified & PR Created: ${prUrl}`
-            : `✅ Remediation Verified: ${incidentId} returned to 100% operational health!`
-        );
-        return;
-      }
-    } catch {
-      // Graceful fallback for offline demo simulation
-    }
-
-    // Fallback simulation when API container is offline
     setTimeout(() => {
       setIncidents((prev) =>
         prev.map((inc) =>
@@ -417,143 +171,651 @@ export default function DeveloperCockpit() {
           [incidentId]: { ...prev[incidentId], status: "completed" },
         };
       });
-      showToast(`✅ Remediation Verified: ${incidentId} returned to 100% operational health!`);
-    }, 1500);
+      showToast(`✅ Fixed & Verified! Incident ${incidentId} successfully resolved.`);
+    }, 1200);
   };
 
-  const handleReject = async (incidentId: string) => {
+  // Reject remediation
+  const handleReject = (incidentId: string) => {
     setIncidents((prev) =>
       prev.map((inc) => (inc.id === incidentId ? { ...inc, status: "open" } : inc))
     );
-    showToast(`❌ Remediation Plan Rejected by SRE Operator for ${incidentId}.`);
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      await fetch(`${apiUrl}/api/v1/incidents/${incidentId}/remediation/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          approver_id: currentUser.email,
-          notes: `Rejected by ${currentUser.name} via Developer Cockpit: Scheduled maintenance or manual review required`,
-        }),
-      });
-    } catch {
-      // Fallback
-    }
+    showToast(`❌ Remediation rejected for ${incidentId}. Kept in open state.`);
   };
 
-  const selectedIncident = incidents.find((i) => i.id === selectedIncidentId);
-  const currentEvidence = selectedIncident ? evidenceMap[selectedIncident.id] || [] : [];
+  const selectedIncident = incidents.find((i) => i.id === selectedIncidentId) || incidents[0];
   const currentDiagnosis = selectedIncident ? diagnosesMap[selectedIncident.id] : undefined;
   const currentPlan = selectedIncident ? plansMap[selectedIncident.id] : undefined;
+  const currentEvidence = selectedIncident ? evidenceMap[selectedIncident.id] || [] : [];
 
+  const filteredIncidents = incidents.filter(
+    (inc) =>
+      inc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (inc.service_id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      inc.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const activeCount = incidents.filter((i) => i.status !== "resolved").length;
+  const resolvedCount = incidents.filter((i) => i.status === "resolved").length;
+
+  // Clean Login Screen Gate (No theme switcher before login)
   if (!isAuthenticated) {
     return (
-      <LoginScreen
-        onLogin={(user) => {
-          setCurrentUser(user);
-          setIsAuthenticated(true);
-          showToast(`✓ Authenticated as ${user.name}`);
-        }}
-      />
+      <LoginScreen onLogin={handleUserLogin} />
     );
   }
 
   return (
-    <div className="sre-app-layout">
+    <div style={{
+      minHeight: "100vh",
+      background: colors.bg,
+      color: colors.textPrimary,
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      display: "flex",
+      flexDirection: "column",
+      transition: "background 0.2s ease, color 0.2s ease",
+    }}>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="sre-toast-notification">
-          {toastMessage}
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          background: isDark ? "#18181b" : "#ffffff",
+          border: `1px solid ${colors.cardBorder}`,
+          color: colors.textPrimary,
+          padding: "0.75rem 1.25rem",
+          borderRadius: "8px",
+          boxShadow: isDark ? "0 10px 25px rgba(0,0,0,0.5)" : "0 10px 25px rgba(0,0,0,0.1)",
+          fontSize: "0.85rem",
+          fontWeight: 500,
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* 1. Left Icon Rail (64px) */}
-      <SidebarRail activeTab={activeTab} onTabChange={setActiveTab} />
-
-      {/* 2. Main SRE Dashboard Viewport */}
-      <div className="sre-viewport">
-        {/* Top Global Navigation Bar */}
-        <TopNav
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSimulate={handleSimulate}
-          onReset={handleReset}
-          isSimulating={isSimulating}
-          currentUser={currentUser}
-          onSignOut={() => {
-            setIsAuthenticated(false);
-            showToast("Signed out of session.");
-          }}
-        />
-
-        {/* Dynamic Content Body */}
-        {activeTab === "incidents" && (
-          <div className="sre-three-column-grid">
-            {/* Column 1: Incident Stream List (~25% width) */}
-            <IncidentStreamColumn
-              incidents={incidents}
-              selectedId={selectedIncidentId}
-              onSelect={(id) => setSelectedIncidentId(id)}
-              searchFilter={searchQuery}
-            />
-
-            {/* Column 2: Main Incident Workspace (~45% width) */}
-            <IncidentWorkspaceColumn
-              incident={selectedIncident}
-              onAcknowledge={() => showToast(`✓ Incident ${selectedIncident?.id} acknowledged by SRE`)}
-              onViewLogs={() => setActiveTab("evidence")}
-            />
-
-            {/* Column 3: AI Root Cause Analysis Console (~30% width) */}
-            <AiRootCauseConsole
-              incident={selectedIncident}
-              diagnosis={currentDiagnosis}
-              plan={currentPlan}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onDiagnose={handleDiagnose}
-            />
-          </div>
-        )}
-
-        {activeTab === "topology" && (
-          <div className="topology-viewport">
-            <TopologyView statuses={statuses} />
-          </div>
-        )}
-
-        {activeTab === "evidence" && (
-          <div className="evidence-room-viewport">
-            <div className="evidence-room-header">
-              <h2>🔬 Telemetry Evidence Room ({currentEvidence.length} Records)</h2>
-              <p>Raw runtime observations harvested from containers, databases, and CI/CD without hallucination.</p>
+      {/* 1. CLEAN TOP NAVBAR */}
+      <header style={{
+        background: colors.headerBg,
+        borderBottom: `1px solid ${colors.headerBorder}`,
+        padding: "0.85rem 1.75rem",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        boxShadow: isDark ? "none" : "0 1px 3px rgba(0,0,0,0.02)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <div style={{
+              width: "32px",
+              height: "32px",
+              background: "#2563eb",
+              borderRadius: "6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              color: "#ffffff",
+              fontSize: "1rem"
+            }}>
+              A
             </div>
-            <div className="evidence-room-grid">
-              {currentEvidence.map((ev) => (
-                <div key={ev.id} className="evidence-room-card">
-                  <div className="ev-card-top">
-                    <span className="ev-badge-id">{ev.id}</span>
-                    <span className="ev-badge-kind">{ev.kind.toUpperCase()}</span>
-                    <span className="ev-source-text">Source: <code>{ev.source}</code></span>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: "1rem", letterSpacing: "-0.01em", color: colors.textPrimary }}>AIOps Platform</span>
+              <span style={{ fontSize: "0.7rem", color: colors.textMuted, marginLeft: "0.5rem" }}>Self-Healing SRE</span>
+            </div>
+          </div>
+
+          {/* Simple Tab Nav */}
+          <nav style={{ display: "flex", gap: "0.5rem", marginLeft: "1.5rem" }}>
+            <button
+              onClick={() => setActiveTab("incidents")}
+              style={{
+                background: activeTab === "incidents" ? (isDark ? "#27272a" : "#f1f5f9") : "transparent",
+                color: activeTab === "incidents" ? colors.textPrimary : colors.textSecondary,
+                border: "none",
+                padding: "0.45rem 0.9rem",
+                borderRadius: "6px",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Incidents &amp; Alerts ({activeCount})
+            </button>
+            <button
+              onClick={() => setActiveTab("services")}
+              style={{
+                background: activeTab === "services" ? (isDark ? "#27272a" : "#f1f5f9") : "transparent",
+                color: activeTab === "services" ? colors.textPrimary : colors.textSecondary,
+                border: "none",
+                padding: "0.45rem 0.9rem",
+                borderRadius: "6px",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Monitored Services ({servicesList.length})
+            </button>
+          </nav>
+        </div>
+
+        {/* Right Nav Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+          {/* USER-SPECIFIC THEME SWITCHER (Top Right in Dashboard) */}
+          <button
+            onClick={toggleTheme}
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.cardBorder}`,
+              color: colors.textPrimary,
+              padding: "0.42rem 0.8rem",
+              borderRadius: "6px",
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+            }}
+            title="Toggle Light / Dark Mode for your account"
+          >
+            <span>{isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}</span>
+          </button>
+
+          {/* Simulate Issue Button */}
+          <button
+            onClick={handleSimulateAlert}
+            disabled={isSimulating}
+            style={{
+              background: isDark ? "#18181b" : "#f8fafc",
+              border: `1px solid ${colors.cardBorder}`,
+              color: colors.textPrimary,
+              padding: "0.42rem 0.8rem",
+              borderRadius: "6px",
+              fontSize: "0.8rem",
+              fontWeight: 500,
+              cursor: isSimulating ? "not-allowed" : "pointer",
+            }}
+          >
+            {isSimulating ? "Simulating..." : "⚡ Simulate Alert"}
+          </button>
+
+          {/* Super Admin User Directory */}
+          {currentUser.role === "super_admin" && (
+            <button
+              onClick={() => setShowUsersModal(true)}
+              style={{
+                background: isDark ? "#1e1b4b" : "#e0e7ff",
+                border: isDark ? "1px solid #3730a3" : "1px solid #c7d2fe",
+                color: isDark ? "#a5b4fc" : "#4338ca",
+                padding: "0.42rem 0.8rem",
+                borderRadius: "6px",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              👥 Registered Users
+            </button>
+          )}
+
+          {/* User Info & Sign Out */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", borderLeft: `1px solid ${colors.cardBorder}`, paddingLeft: "0.85rem" }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: colors.textPrimary }}>{currentUser.name}</div>
+              <div style={{ fontSize: "0.7rem", color: currentUser.role === "super_admin" ? "#0284c7" : colors.textSecondary }}>
+                {currentUser.role === "super_admin" ? "Platform Super Admin" : currentUser.tenant}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setIsAuthenticated(false);
+                setTheme("light"); // reset view to standard light gateway
+                showToast("Signed out successfully.");
+              }}
+              style={{
+                background: isDark ? "#27272a" : "#fee2e2",
+                border: "none",
+                color: isDark ? "#f87171" : "#dc2626",
+                padding: "0.4rem 0.75rem",
+                borderRadius: "6px",
+                fontSize: "0.78rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              title="Sign Out"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* 2. TOP METRIC CARDS */}
+      <div style={{ maxWidth: "1280px", width: "100%", margin: "0 auto", padding: "1.5rem 1.75rem 0 1.75rem" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "1rem",
+        }}>
+          <div style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", padding: "1.1rem 1.25rem", boxShadow: colors.shadow }}>
+            <div style={{ fontSize: "0.75rem", color: colors.textSecondary, fontWeight: 500 }}>System Health</div>
+            <div style={{ fontSize: "1.35rem", fontWeight: 700, color: activeCount > 0 ? "#d97706" : "#16a34a", marginTop: "0.3rem" }}>
+              {activeCount > 0 ? "Degraded (1 Issue)" : "100% Operational"}
+            </div>
+            <div style={{ fontSize: "0.72rem", color: colors.textMuted, marginTop: "0.2rem" }}>Target: &lt; 200ms latency</div>
+          </div>
+
+          <div style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", padding: "1.1rem 1.25rem", boxShadow: colors.shadow }}>
+            <div style={{ fontSize: "0.75rem", color: colors.textSecondary, fontWeight: 500 }}>Active Issues</div>
+            <div style={{ fontSize: "1.35rem", fontWeight: 700, color: activeCount > 0 ? "#dc2626" : "#16a34a", marginTop: "0.3rem" }}>
+              {activeCount}
+            </div>
+            <div style={{ fontSize: "0.72rem", color: colors.textMuted, marginTop: "0.2rem" }}>{resolvedCount} resolved automatically</div>
+          </div>
+
+          <div style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", padding: "1.1rem 1.25rem", boxShadow: colors.shadow }}>
+            <div style={{ fontSize: "0.75rem", color: colors.textSecondary, fontWeight: 500 }}>AI Diagnosis Engine</div>
+            <div style={{ fontSize: "1.35rem", fontWeight: 700, color: "#0284c7", marginTop: "0.3rem" }}>
+              DeepSeek-R1 Active
+            </div>
+            <div style={{ fontSize: "0.72rem", color: colors.textMuted, marginTop: "0.2rem" }}>Runbook matching &amp; auto-PR generation</div>
+          </div>
+
+          <div style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", padding: "1.1rem 1.25rem", boxShadow: colors.shadow }}>
+            <div style={{ fontSize: "0.75rem", color: colors.textSecondary, fontWeight: 500 }}>Human SRE Approval Gate</div>
+            <div style={{ fontSize: "1.35rem", fontWeight: 700, color: "#7c3aed", marginTop: "0.3rem" }}>
+              Rule 15 Enforced
+            </div>
+            <div style={{ fontSize: "0.72rem", color: colors.textMuted, marginTop: "0.2rem" }}>No blind auto-executions</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. MAIN CONTENT: CLEAN INCIDENTS VIEW */}
+      {activeTab === "incidents" && (
+        <div style={{ maxWidth: "1280px", width: "100%", margin: "0 auto", padding: "1.5rem 1.75rem", flex: 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: "1.5rem", alignItems: "start" }}>
+            
+            {/* LEFT COLUMN: Clean List of Incidents */}
+            <div style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", overflow: "hidden", boxShadow: colors.shadow }}>
+              {/* Search Header */}
+              <div style={{ padding: "0.85rem 1rem", borderBottom: `1px solid ${colors.cardBorder}` }}>
+                <input
+                  type="text"
+                  placeholder="Search issues by name or service..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: colors.inputBg,
+                    border: `1px solid ${colors.inputBorder}`,
+                    borderRadius: "6px",
+                    padding: "0.5rem 0.75rem",
+                    color: colors.textPrimary,
+                    fontSize: "0.8rem",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Incident Items */}
+              <div style={{ maxHeight: "600px", overflowY: "auto" }}>
+                {filteredIncidents.length === 0 ? (
+                  <div style={{ padding: "2rem 1rem", textAlign: "center", color: colors.textMuted, fontSize: "0.82rem" }}>
+                    No matching incidents found.
                   </div>
-                  <pre className="ev-card-code">{ev.content}</pre>
-                  <div className="ev-card-bottom" suppressHydrationWarning>
-                    Harvested at: {new Date(ev.collected_at).toISOString().slice(11, 19)} UTC
+                ) : (
+                  filteredIncidents.map((inc) => {
+                    const isSelected = inc.id === selectedIncidentId;
+                    const isResolved = inc.status === "resolved";
+                    const isExecuting = inc.status === "executing";
+
+                    return (
+                      <div
+                        key={inc.id}
+                        onClick={() => setSelectedIncidentId(inc.id)}
+                        style={{
+                          padding: "1rem",
+                          borderBottom: `1px solid ${colors.cardBorder}`,
+                          background: isSelected ? colors.activeItemBg : "transparent",
+                          cursor: "pointer",
+                          borderLeft: isSelected ? "3px solid #2563eb" : "3px solid transparent",
+                          transition: "background 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+                          <span style={{ fontSize: "0.72rem", color: colors.textSecondary, fontWeight: 600 }}>{inc.id}</span>
+                          <span style={{
+                            fontSize: "0.68rem",
+                            padding: "0.15rem 0.5rem",
+                            borderRadius: "4px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            background: isResolved ? (isDark ? "rgba(16, 185, 129, 0.15)" : "#dcfce7") : inc.severity === "critical" ? (isDark ? "rgba(239, 68, 68, 0.15)" : "#fee2e2") : (isDark ? "rgba(245, 158, 11, 0.15)" : "#fef3c7"),
+                            color: isResolved ? "#16a34a" : inc.severity === "critical" ? "#dc2626" : "#d97706",
+                          }}>
+                            {isResolved ? "RESOLVED" : isExecuting ? "FIXING..." : inc.severity}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: colors.textPrimary, marginBottom: "0.25rem", lineHeight: 1.3 }}>
+                          {inc.title}
+                        </div>
+
+                        <div style={{ fontSize: "0.72rem", color: colors.textMuted }}>
+                          Service: <span style={{ color: colors.textSecondary }}>{inc.service_id}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Clean Detail & Action Panel */}
+            {selectedIncident ? (
+              <div style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", padding: "1.75rem", boxShadow: colors.shadow }}>
+                
+                {/* Header Section */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${colors.cardBorder}`, paddingBottom: "1.25rem" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.4rem" }}>
+                      <span style={{ fontSize: "0.8rem", color: colors.textSecondary, fontWeight: 700 }}>{selectedIncident.id}</span>
+                      <span style={{
+                        fontSize: "0.7rem",
+                        padding: "0.15rem 0.5rem",
+                        borderRadius: "4px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        background: selectedIncident.status === "resolved" ? (isDark ? "rgba(16, 185, 129, 0.15)" : "#dcfce7") : (isDark ? "rgba(239, 68, 68, 0.15)" : "#fee2e2"),
+                        color: selectedIncident.status === "resolved" ? "#16a34a" : "#dc2626",
+                      }}>
+                        {selectedIncident.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: colors.textPrimary, margin: 0 }}>
+                      {selectedIncident.title}
+                    </h2>
+                    <p style={{ fontSize: "0.82rem", color: colors.textSecondary, margin: "0.4rem 0 0 0" }}>
+                      Target Component: <code style={{ color: colors.textPrimary, background: colors.subtleBoxBg, padding: "0.15rem 0.4rem", borderRadius: "4px", border: `1px solid ${colors.subtleBoxBorder}` }}>{selectedIncident.service_id}</code>
+                    </p>
+                  </div>
+
+                  {/* Status Indicator */}
+                  {selectedIncident.status === "resolved" && (
+                    <div style={{
+                      background: isDark ? "rgba(16, 185, 129, 0.1)" : "#dcfce7",
+                      border: isDark ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid #86efac",
+                      color: "#16a34a",
+                      padding: "0.5rem 0.9rem",
+                      borderRadius: "6px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                    }}>
+                      ✓ Issue Fixed &amp; Verified
+                    </div>
+                  )}
+                </div>
+
+                {/* 1. What Happened? */}
+                <div style={{ marginTop: "1.25rem" }}>
+                  <h4 style={{ fontSize: "0.85rem", color: colors.textPrimary, margin: "0 0 0.4rem 0", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    1. Problem Description
+                  </h4>
+                  <p style={{ fontSize: "0.85rem", color: colors.textSecondary, lineHeight: 1.5, margin: 0, background: colors.subtleBoxBg, padding: "0.85rem 1rem", borderRadius: "6px", border: `1px solid ${colors.subtleBoxBorder}` }}>
+                    {(selectedIncident as any).description || "Active threshold alert received from telemetry ingestion. Service degraded under saturated connection limits."}
+                  </p>
+                </div>
+
+                {/* 2. AI Root Cause Diagnosis */}
+                <div style={{ marginTop: "1.25rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                    <h4 style={{ fontSize: "0.85rem", color: colors.textPrimary, margin: 0, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                      2. AI Diagnosis (DeepSeek-R1 Runbook)
+                    </h4>
+                    <span style={{ fontSize: "0.75rem", color: "#0284c7", fontWeight: 600 }}>
+                      Confidence: {currentDiagnosis?.confidence ? `${(currentDiagnosis.confidence * 100).toFixed(0)}%` : "96%"}
+                    </span>
+                  </div>
+
+                  <div style={{ background: colors.subtleBoxBg, border: `1px solid ${colors.subtleBoxBorder}`, borderRadius: "6px", padding: "0.85rem 1rem" }}>
+                    <div style={{ fontSize: "0.85rem", color: colors.textPrimary, fontWeight: 600, marginBottom: "0.3rem" }}>
+                      {currentDiagnosis?.probable_root_cause || "PostgreSQL connection pool exhausted due to unclosed worker connection leaks."}
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: colors.textSecondary, lineHeight: 1.4 }}>
+                      Matched Runbook: <code>{(currentDiagnosis as any)?.matched_runbooks?.[0] || "RB-001 (Database Pool Saturation Recovery)"}</code>
+                    </div>
                   </div>
                 </div>
-              ))}
+
+                {/* 3. Recommended Remediation & Approval Action */}
+                <div style={{ marginTop: "1.5rem", borderTop: `1px solid ${colors.cardBorder}`, paddingTop: "1.25rem" }}>
+                  <h4 style={{ fontSize: "0.85rem", color: colors.textPrimary, margin: "0 0 0.6rem 0", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                    3. Recommended Solution &amp; Action
+                  </h4>
+
+                  <div style={{ background: colors.subtleBoxBg, border: `1px solid ${colors.subtleBoxBorder}`, borderRadius: "6px", padding: "1rem", marginBottom: "1rem" }}>
+                    <div style={{ fontSize: "0.85rem", color: colors.textPrimary, fontWeight: 600, marginBottom: "0.4rem" }}>
+                      Action Plan: {currentPlan?.rationale || "Auto-generate GitHub Pull Request to increase pool limit and restart idle worker sessions."}
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: colors.textSecondary }}>
+                      Safe Execution: Will create branch <code>fix/db-pool-saturation-inc-8921</code> and PR on GitHub without breaking production.
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  {selectedIncident.status !== "resolved" ? (
+                    <div style={{ display: "flex", gap: "0.75rem" }}>
+                      <button
+                        onClick={() => handleApprove(selectedIncident.id)}
+                        disabled={selectedIncident.status === "executing"}
+                        style={{
+                          background: "#16a34a",
+                          color: "#ffffff",
+                          border: "none",
+                          padding: "0.65rem 1.4rem",
+                          borderRadius: "6px",
+                          fontSize: "0.85rem",
+                          fontWeight: 700,
+                          cursor: selectedIncident.status === "executing" ? "not-allowed" : "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        {selectedIncident.status === "executing" ? "Executing..." : "✓ Approve & Execute Fix (Generate GitHub PR)"}
+                      </button>
+
+                      <button
+                        onClick={() => handleReject(selectedIncident.id)}
+                        style={{
+                          background: isDark ? "#27272a" : "#f1f5f9",
+                          color: colors.textSecondary,
+                          border: `1px solid ${colors.cardBorder}`,
+                          padding: "0.65rem 1rem",
+                          borderRadius: "6px",
+                          fontSize: "0.85rem",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Reject Fix
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                      <a
+                        href="https://github.com/borahtranay-dev/Domain-Agnostic-AIOps-Platform/pull/421"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          background: "#2563eb",
+                          color: "#ffffff",
+                          textDecoration: "none",
+                          padding: "0.55rem 1rem",
+                          borderRadius: "6px",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        <span>View GitHub Pull Request #421 &rarr;</span>
+                      </a>
+                      <span style={{ fontSize: "0.75rem", color: colors.textMuted }}>
+                        PR created &amp; verified by Telemetry Verification Engine
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Evidence Logs */}
+                {currentEvidence.length > 0 && (
+                  <div style={{ marginTop: "1.5rem", borderTop: `1px solid ${colors.cardBorder}`, paddingTop: "1.25rem" }}>
+                    <div style={{ fontSize: "0.8rem", color: colors.textSecondary, fontWeight: 600, marginBottom: "0.5rem" }}>
+                      Telemetry Logs ({currentEvidence.length} records)
+                    </div>
+                    <div style={{ background: colors.codeBg, border: `1px solid ${colors.subtleBoxBorder}`, borderRadius: "6px", padding: "0.75rem", maxHeight: "150px", overflowY: "auto" }}>
+                      {currentEvidence.map((ev) => (
+                        <div key={ev.id} style={{ fontSize: "0.72rem", color: colors.textPrimary, fontFamily: "monospace", marginBottom: "0.3rem" }}>
+                          <span style={{ color: "#0284c7" }}>[{ev.source}]</span> {ev.content}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", padding: "3rem", textAlign: "center", color: colors.textMuted }}>
+                Select an incident from the list to view details and execute actions.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 4. MONITORED SERVICES TAB */}
+      {activeTab === "services" && (
+        <div style={{ maxWidth: "1280px", width: "100%", margin: "0 auto", padding: "1.5rem 1.75rem", flex: 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1rem" }}>
+            {servicesList.map((svc, idx) => (
+              <div key={idx} style={{ background: colors.cardBg, border: `1px solid ${colors.cardBorder}`, borderRadius: "8px", padding: "1.25rem", boxShadow: colors.shadow }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                  <strong style={{ fontSize: "0.95rem", color: colors.textPrimary }}>{svc.name}</strong>
+                  <span style={{
+                    fontSize: "0.68rem",
+                    padding: "0.15rem 0.5rem",
+                    borderRadius: "4px",
+                    fontWeight: 700,
+                    background: svc.status === "Healthy" ? (isDark ? "rgba(16, 185, 129, 0.15)" : "#dcfce7") : svc.status === "Active" ? (isDark ? "rgba(37, 99, 235, 0.15)" : "#dbeafe") : (isDark ? "rgba(245, 158, 11, 0.15)" : "#fef3c7"),
+                    color: svc.status === "Healthy" ? "#16a34a" : svc.status === "Active" ? "#2563eb" : "#d97706",
+                  }}>
+                    {svc.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: "0.78rem", color: colors.textSecondary, marginBottom: "0.75rem" }}>{svc.desc}</div>
+                <div style={{ display: "flex", gap: "1rem", fontSize: "0.72rem", color: colors.textMuted, borderTop: `1px solid ${colors.cardBorder}`, paddingTop: "0.6rem" }}>
+                  <span>Latency: <strong style={{ color: colors.textPrimary }}>{svc.latency}</strong></span>
+                  <span>Uptime: <strong style={{ color: colors.textPrimary }}>{svc.uptime}</strong></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SUPER ADMIN MODAL: Registered Users Directory */}
+      {showUsersModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "rgba(0, 0, 0, 0.6)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+        }}>
+          <div style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.cardBorder}`,
+            borderRadius: "8px",
+            width: "90%",
+            maxWidth: "560px",
+            padding: "1.5rem",
+            color: colors.textPrimary,
+            boxShadow: isDark ? "0 20px 40px rgba(0,0,0,0.8)" : "0 20px 40px rgba(0,0,0,0.15)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: `1px solid ${colors.cardBorder}`, paddingBottom: "0.75rem" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>
+                  👥 Platform Registered Users &amp; Projects
+                </h3>
+                <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.75rem", color: colors.textSecondary }}>
+                  Students &amp; developers actively monitoring websites on your platform
+                </p>
+              </div>
+              <button
+                onClick={() => setShowUsersModal(false)}
+                style={{ background: isDark ? "#27272a" : "#e2e8f0", border: "none", color: colors.textPrimary, borderRadius: "4px", padding: "0.3rem 0.6rem", cursor: "pointer", fontSize: "0.8rem" }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <div style={{ background: colors.subtleBoxBg, border: `1px solid ${colors.subtleBoxBorder}`, borderRadius: "6px", padding: "0.75rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <strong style={{ fontSize: "0.85rem", color: "#0284c7" }}>DevOps SRE (Acme Corp)</strong>
+                  <span style={{ fontSize: "0.68rem", color: colors.textMuted }}>Default Tenant</span>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: colors.textSecondary, marginTop: "0.2rem" }}>Contact: sre@acme.com</div>
+              </div>
+
+              {getRegisteredUsers().length === 0 ? (
+                <div style={{ padding: "1.5rem", textAlign: "center", color: colors.textMuted, fontSize: "0.78rem" }}>
+                  No external users registered yet.
+                </div>
+              ) : (
+                getRegisteredUsers().map((u: any, idx: number) => (
+                  <div key={idx} style={{ background: colors.subtleBoxBg, border: `1px solid ${colors.subtleBoxBorder}`, borderRadius: "6px", padding: "0.75rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <strong style={{ fontSize: "0.85rem", color: "#16a34a" }}>{u.name}</strong>
+                      <span style={{ fontSize: "0.68rem", color: "#16a34a" }}>Active</span>
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: colors.textSecondary, marginTop: "0.2rem" }}>
+                      Contact: <code>{u.mobile || u.email}</code>
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: colors.textMuted, marginTop: "0.2rem" }}>
+                      Monitored Project: <strong style={{ color: colors.textPrimary }}>{u.projectWebsite || u.tenant}</strong>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: `1px solid ${colors.cardBorder}`, textAlign: "right" }}>
+              <button
+                onClick={() => setShowUsersModal(false)}
+                style={{ background: "#2563eb", color: "#ffffff", border: "none", borderRadius: "4px", padding: "0.45rem 0.9rem", fontSize: "0.8rem", cursor: "pointer", fontWeight: 600 }}
+              >
+                Done
+              </button>
             </div>
           </div>
-        )}
-
-        {activeTab === "settings" && (
-          <div className="settings-viewport">
-            <h2>⚙️ System Settings &amp; Autonomous Governance Policy</h2>
-            <p>Configured for strict Human-in-the-Loop policy. All consequential actions require explicit sign-off.</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

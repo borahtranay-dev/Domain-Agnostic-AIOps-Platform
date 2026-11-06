@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan managing database table creation on startup."""
     try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables initialized successfully.")
+        # In test environments with dependency overrides or SQLite, skip binding to external postgres
+        if not app.dependency_overrides:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables initialized successfully.")
     except Exception as e:
         logger.warning(f"Database table initialization deferred/skipped: {e}")
     yield

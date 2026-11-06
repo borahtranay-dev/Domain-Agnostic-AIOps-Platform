@@ -29,6 +29,18 @@ export function TopNav({
   const [showDemoMenu, setShowDemoMenu] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAlertPopover, setShowAlertPopover] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
+
+  // Helper to get registered users from localStorage
+  const getRegisteredUsers = () => {
+    if (typeof window === "undefined") return [];
+    try {
+      const data = localStorage.getItem("aiops_registered_users");
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  };
 
   return (
     <header className="topnav-bar">
@@ -225,19 +237,34 @@ export function TopNav({
                 <div className="demo-popover-divider"></div>
 
                 {currentUser?.role === "super_admin" && (
-                  <button
-                    onClick={() => {
-                      alert("Simulated: Platform Ingestion Token: aiops_live_sk_948f21e0b");
-                      setShowAuthModal(false);
-                    }}
-                    className="demo-popover-btn"
-                  >
-                    <span className="btn-bullet yellow">🔑</span>
-                    <div className="btn-desc">
-                      <strong>Platform Master API Key</strong>
-                      <small>Vendor ingestion root key</small>
-                    </div>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowUsersModal(true);
+                        setShowAuthModal(false);
+                      }}
+                      className="demo-popover-btn"
+                    >
+                      <span className="btn-bullet blue">👥</span>
+                      <div className="btn-desc">
+                        <strong>Registered Users &amp; Projects</strong>
+                        <small>Students &amp; devs monitoring their sites</small>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        alert("Simulated: Platform Ingestion Token: aiops_live_sk_948f21e0b");
+                        setShowAuthModal(false);
+                      }}
+                      className="demo-popover-btn"
+                    >
+                      <span className="btn-bullet yellow">🔑</span>
+                      <div className="btn-desc">
+                        <strong>Platform Master API Key</strong>
+                        <small>Vendor ingestion root key</small>
+                      </div>
+                    </button>
+                  </>
                 )}
 
                 <button
@@ -258,6 +285,99 @@ export function TopNav({
           )}
         </div>
       </div>
+
+      {/* Super Admin Modal: Registered Users & Monitored Sites */}
+      {showUsersModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          backgroundColor: "rgba(0, 0, 0, 0.75)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          backdropFilter: "blur(4px)"
+        }}>
+          <div style={{
+            background: "#0f0f12",
+            border: "1px solid #27272e",
+            borderRadius: "12px",
+            width: "90%",
+            maxWidth: "600px",
+            padding: "1.5rem",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+            color: "#f4f4f5"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid #23232a", paddingBottom: "0.75rem" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#f8fafc" }}>
+                  👑 Platform Super Admin &middot; User Directory
+                </h3>
+                <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Students &amp; developers actively monitoring projects on your platform
+                </p>
+              </div>
+              <button
+                onClick={() => setShowUsersModal(false)}
+                style={{
+                  background: "#27272e",
+                  border: "none",
+                  color: "#cbd5e1",
+                  borderRadius: "6px",
+                  padding: "0.3rem 0.6rem",
+                  cursor: "pointer",
+                  fontSize: "0.8rem"
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div style={{ maxHeight: "350px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {/* Default Mock SRE */}
+              <div style={{ background: "#16161a", border: "1px solid #23232a", borderRadius: "8px", padding: "0.75rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <strong style={{ fontSize: "0.85rem", color: "#38bdf8" }}>DevOps SRE (Acme Corp)</strong>
+                  <span style={{ fontSize: "0.68rem", background: "#1e293b", color: "#94a3b8", padding: "0.15rem 0.45rem", borderRadius: "4px" }}>Default Tenant</span>
+                </div>
+                <div style={{ fontSize: "0.74rem", color: "#cbd5e1", marginTop: "0.3rem" }}>
+                  Email: <code>sre@acme.com</code> &middot; Scope: Production VPC &amp; Kubernetes Clusters
+                </div>
+              </div>
+
+              {/* Dynamic Users from LocalStorage */}
+              {getRegisteredUsers().length === 0 ? (
+                <div style={{ padding: "1.5rem", textAlign: "center", color: "#71717a", fontSize: "0.78rem" }}>
+                  No external users registered yet. New students or developers who sign up with their Mobile No. or Email will appear here in real time.
+                </div>
+              ) : (
+                getRegisteredUsers().map((u: any, idx: number) => (
+                  <div key={idx} style={{ background: "#16161a", border: "1px solid #27272e", borderRadius: "8px", padding: "0.75rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong style={{ fontSize: "0.85rem", color: "#34d399" }}>{u.name}</strong>
+                      <span style={{ fontSize: "0.68rem", background: "rgba(16, 185, 129, 0.15)", color: "#34d399", padding: "0.15rem 0.45rem", borderRadius: "4px" }}>Active Workspace</span>
+                    </div>
+                    <div style={{ fontSize: "0.74rem", color: "#e2e8f0", marginTop: "0.3rem" }}>
+                      Contact: <code>{u.mobile || u.email}</code>
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "0.2rem" }}>
+                      Monitored Project: <strong style={{ color: "#f1f5f9" }}>{u.projectWebsite || u.tenant}</strong>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid #23232a", display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#64748b" }}>
+              <span>Total Workspaces: {1 + getRegisteredUsers().length}</span>
+              <span>Exclusive Super Admin: Saurav</span>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
