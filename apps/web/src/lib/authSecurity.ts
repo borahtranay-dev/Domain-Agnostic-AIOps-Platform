@@ -125,6 +125,55 @@ export function verifyDemoSREPassword(passwordInput: string): boolean {
 }
 
 /**
+ * Validates Enterprise Strong Password Policy:
+ * 1. Minimum 8 characters
+ * 2. At least 1 Uppercase letter (A-Z)
+ * 3. At least 1 Lowercase letter (a-z)
+ * 4. At least 1 Number (0-9)
+ * 5. At least 1 Special character (!@#$%^&*...)
+ */
+export interface PasswordValidationResult {
+  isValid: boolean;
+  hasMinLength: boolean;
+  hasUpperCase: boolean;
+  hasLowerCase: boolean;
+  hasNumber: boolean;
+  hasSpecialChar: boolean;
+  errorMessage?: string;
+}
+
+export function validatePasswordStrength(password: string): PasswordValidationResult {
+  const hasMinLength = password.length >= 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password);
+
+  const isValid = hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
+
+  let errorMessage: string | undefined = undefined;
+  if (!isValid) {
+    const missing: string[] = [];
+    if (!hasMinLength) missing.push("minimum 8 characters");
+    if (!hasUpperCase) missing.push("1 uppercase letter (A-Z)");
+    if (!hasLowerCase) missing.push("1 lowercase letter (a-z)");
+    if (!hasNumber) missing.push("1 number (0-9)");
+    if (!hasSpecialChar) missing.push("1 special symbol (!@#$...)");
+    errorMessage = `Password must contain ${missing.join(", ")}.`;
+  }
+
+  return {
+    isValid,
+    hasMinLength,
+    hasUpperCase,
+    hasLowerCase,
+    hasNumber,
+    hasSpecialChar,
+    errorMessage,
+  };
+}
+
+/**
  * Changes Super Admin Password and saves irreversible hash.
  */
 export function changeSuperAdminPassword(
@@ -139,8 +188,9 @@ export function changeSuperAdminPassword(
     return { success: false, message: "Current Super Admin password is incorrect." };
   }
 
-  if (newPasswordInput.length < 8) {
-    return { success: false, message: "New password must be at least 8 characters long." };
+  const strength = validatePasswordStrength(newPasswordInput);
+  if (!strength.isValid) {
+    return { success: false, message: strength.errorMessage || "Password does not meet enterprise security standards." };
   }
 
   const newHash = sha256(newPasswordInput);
@@ -177,8 +227,9 @@ export function changeUserPassword(
     return { success: false, message: "Window context unavailable" };
   }
 
-  if (newPasswordInput.length < 8) {
-    return { success: false, message: "New password must be at least 8 characters long." };
+  const strength = validatePasswordStrength(newPasswordInput);
+  if (!strength.isValid) {
+    return { success: false, message: strength.errorMessage || "Password does not meet enterprise security standards." };
   }
 
   try {

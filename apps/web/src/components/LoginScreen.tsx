@@ -6,6 +6,7 @@ import {
   verifySuperAdminPassword,
   verifyDemoSREPassword,
   verifyRegisteredUserPassword,
+  validatePasswordStrength,
 } from "@/lib/authSecurity";
 
 interface UserProfile {
@@ -54,6 +55,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [loginMethod, setLoginMethod] = useState<"email" | "mobile">("email");
   const [loginIdentifier, setLoginIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Register States (Both Email and Mobile are MANDATORY in separate sections)
   const [regName, setRegName] = useState("");
@@ -61,11 +63,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [regMobile, setRegMobile] = useState("");
   const [regProject, setRegProject] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
-  // Verification Code States (OTP Step)
+  // Verification Code States (OTP Step & Anti-Brute Force)
   const [verificationStep, setVerificationStep] = useState(false);
   const [enteredOtp, setEnteredOtp] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("749201");
+  const [otpAttempts, setOtpAttempts] = useState(0);
   const [pendingUser, setPendingUser] = useState<UserProfile | null>(null);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -182,6 +186,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       return;
     }
 
+    // Strong Password Policy Check
+    const strength = validatePasswordStrength(regPassword);
+    if (!strength.isValid) {
+      setErrorMsg(strength.errorMessage || "Password does not meet enterprise security requirements.");
+      return;
+    }
+
     // Check if user already exists
     const storedUsers = getStoredUsers();
     const emailExists = storedUsers.some((u) => u.email.toLowerCase() === cleanEmail);
@@ -216,13 +227,22 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setSuccessMsg(`Confirmation code sent to ${cleanEmail} and ${cleanMobile}!`);
   };
 
-  // Handle Step 2: Verify Confirmation Code (OTP)
+  // Handle Step 2: Verify Confirmation Code (OTP with Anti-Brute-Force Guard)
   const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
     if (enteredOtp.trim() !== generatedOtp && enteredOtp.trim() !== "123456") {
-      setErrorMsg("Invalid confirmation code. Please check the 6-digit code and try again.");
+      const nextAttempts = otpAttempts + 1;
+      setOtpAttempts(nextAttempts);
+      if (nextAttempts >= 5) {
+        setErrorMsg("Too many failed confirmation attempts. For security, your session has been reset.");
+        setVerificationStep(false);
+        setPendingUser(null);
+        setOtpAttempts(0);
+        return;
+      }
+      setErrorMsg(`Invalid confirmation code (${5 - nextAttempts} attempts remaining).`);
       return;
     }
 
@@ -438,23 +458,44 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: colors.textPrimary, marginBottom: "0.35rem" }}>
                 Password
               </label>
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                style={{
-                  width: "100%",
-                  background: colors.inputBg,
-                  border: `1px solid ${colors.inputBorder}`,
-                  borderRadius: "6px",
-                  padding: "0.6rem 0.8rem",
-                  color: colors.textPrimary,
-                  fontSize: "0.85rem",
-                  outline: "none",
-                }}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showLoginPassword ? "text" : "password"}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  style={{
+                    width: "100%",
+                    background: colors.inputBg,
+                    border: `1px solid ${colors.inputBorder}`,
+                    borderRadius: "6px",
+                    padding: "0.6rem 2.4rem 0.6rem 0.8rem",
+                    color: colors.textPrimary,
+                    fontSize: "0.85rem",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: colors.textMuted,
+                    fontSize: "0.75rem",
+                    padding: "2px 4px",
+                  }}
+                  title={showLoginPassword ? "Hide password" : "Show password"}
+                >
+                  {showLoginPassword ? "🙈 Hide" : "👁️ Show"}
+                </button>
+              </div>
             </div>
 
             <button
@@ -581,26 +622,84 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.76rem", fontWeight: 600, color: colors.textPrimary, marginBottom: "0.3rem" }}>
-                Create Password <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <input
-                type="password"
-                value={regPassword}
-                onChange={(e) => setRegPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                style={{
-                  width: "100%",
-                  background: colors.inputBg,
-                  border: `1px solid ${colors.inputBorder}`,
-                  borderRadius: "6px",
-                  padding: "0.55rem 0.8rem",
-                  color: colors.textPrimary,
-                  fontSize: "0.82rem",
-                  outline: "none",
-                }}
-              />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
+                <label style={{ fontSize: "0.76rem", fontWeight: 600, color: colors.textPrimary }}>
+                  Create Strong Password <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <span style={{ fontSize: "0.68rem", color: colors.textMuted }}>Enterprise Policy</span>
+              </div>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showRegPassword ? "text" : "password"}
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="e.g. Secure#Pass2026"
+                  required
+                  style={{
+                    width: "100%",
+                    background: colors.inputBg,
+                    border: `1px solid ${regPassword.length > 0 ? (validatePasswordStrength(regPassword).isValid ? "#22c55e" : "#f59e0b") : colors.inputBorder}`,
+                    borderRadius: "6px",
+                    padding: "0.55rem 2.4rem 0.55rem 0.8rem",
+                    color: colors.textPrimary,
+                    fontSize: "0.82rem",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: colors.textMuted,
+                    fontSize: "0.75rem",
+                    padding: "2px 4px",
+                  }}
+                  title={showRegPassword ? "Hide password" : "Show password"}
+                >
+                  {showRegPassword ? "🙈 Hide" : "👁️ Show"}
+                </button>
+              </div>
+
+              {/* Real-Time Strong Password Policy Checklist */}
+              {regPassword.length > 0 && (() => {
+                const s = validatePasswordStrength(regPassword);
+                return (
+                  <div style={{
+                    marginTop: "0.45rem",
+                    padding: "0.55rem 0.7rem",
+                    background: s.isValid ? "rgba(34, 197, 94, 0.08)" : "#f8fafc",
+                    border: `1px solid ${s.isValid ? "rgba(34, 197, 94, 0.3)" : "#e2e8f0"}`,
+                    borderRadius: "6px",
+                    fontSize: "0.69rem",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "0.25rem 0.5rem"
+                  }}>
+                    <span style={{ color: s.hasMinLength ? "#16a34a" : "#94a3b8", display: "flex", alignItems: "center", gap: "4px" }}>
+                      {s.hasMinLength ? "✓" : "○"} Min. 8 Characters
+                    </span>
+                    <span style={{ color: s.hasUpperCase ? "#16a34a" : "#94a3b8", display: "flex", alignItems: "center", gap: "4px" }}>
+                      {s.hasUpperCase ? "✓" : "○"} 1 Uppercase (A-Z)
+                    </span>
+                    <span style={{ color: s.hasLowerCase ? "#16a34a" : "#94a3b8", display: "flex", alignItems: "center", gap: "4px" }}>
+                      {s.hasLowerCase ? "✓" : "○"} 1 Lowercase (a-z)
+                    </span>
+                    <span style={{ color: s.hasNumber ? "#16a34a" : "#94a3b8", display: "flex", alignItems: "center", gap: "4px" }}>
+                      {s.hasNumber ? "✓" : "○"} 1 Number (0-9)
+                    </span>
+                    <span style={{ color: s.hasSpecialChar ? "#16a34a" : "#94a3b8", display: "flex", alignItems: "center", gap: "4px", gridColumn: "span 2" }}>
+                      {s.hasSpecialChar ? "✓" : "○"} 1 Special Symbol (!@#$%^&*...)
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             <button
@@ -641,34 +740,17 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               </div>
             </div>
 
-            {/* Simulated OTP Helper Banner */}
+            {/* Verification Info */}
             <div style={{
-              background: "#ede9fe",
-              border: "1px solid #c4b5fd",
+              background: "#f1f5f9",
+              border: "1px solid #cbd5e1",
               borderRadius: "6px",
               padding: "0.6rem 0.8rem",
               fontSize: "0.74rem",
-              color: "#5b21b6",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center"
+              color: "#334155",
+              textAlign: "center"
             }}>
-              <span>📩 Simulated Gmail Code: <strong>{generatedOtp}</strong></span>
-              <button
-                type="button"
-                onClick={() => setEnteredOtp(generatedOtp)}
-                style={{
-                  background: "#7c3aed",
-                  border: "none",
-                  color: "#ffffff",
-                  padding: "0.25rem 0.5rem",
-                  borderRadius: "4px",
-                  fontSize: "0.7rem",
-                  cursor: "pointer",
-                }}
-              >
-                Auto-fill Code
-              </button>
+              <span>Enter the 6-digit verification code sent to your Gmail inbox.</span>
             </div>
 
             <div>

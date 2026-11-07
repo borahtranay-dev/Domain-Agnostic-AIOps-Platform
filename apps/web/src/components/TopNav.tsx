@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { changeSuperAdminPassword, changeUserPassword } from "@/lib/authSecurity";
+import { changeSuperAdminPassword, changeUserPassword, validatePasswordStrength } from "@/lib/authSecurity";
 
 interface TopNavProps {
   searchQuery: string;
@@ -539,9 +539,12 @@ export function TopNav({
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", marginBottom: "0.3rem", fontWeight: 600 }}>
-                  New Password <span style={{ fontSize: "0.7rem", color: "#71717a" }}>(min. 8 characters)</span>
-                </label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
+                  <label style={{ fontSize: "0.78rem", color: "#94a3b8", fontWeight: 600 }}>
+                    New Password
+                  </label>
+                  <span style={{ fontSize: "0.68rem", color: "#71717a" }}>Enterprise Strong Policy</span>
+                </div>
                 <input
                   type="password"
                   required
@@ -551,7 +554,7 @@ export function TopNav({
                   style={{
                     width: "100%",
                     background: "#18181b",
-                    border: "1px solid #27272e",
+                    border: `1px solid ${newPass.length > 0 ? (validatePasswordStrength(newPass).isValid ? "#22c55e" : "#f59e0b") : "#27272e"}`,
                     borderRadius: "6px",
                     padding: "0.55rem 0.75rem",
                     color: "#f4f4f5",
@@ -559,6 +562,40 @@ export function TopNav({
                     outline: "none"
                   }}
                 />
+
+                {/* Real-time Checklist */}
+                {newPass.length > 0 && (() => {
+                  const s = validatePasswordStrength(newPass);
+                  return (
+                    <div style={{
+                      marginTop: "0.45rem",
+                      padding: "0.5rem 0.6rem",
+                      background: s.isValid ? "rgba(34, 197, 94, 0.08)" : "#18181b",
+                      border: `1px solid ${s.isValid ? "rgba(34, 197, 94, 0.3)" : "#27272e"}`,
+                      borderRadius: "6px",
+                      fontSize: "0.68rem",
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "0.2rem 0.5rem"
+                    }}>
+                      <span style={{ color: s.hasMinLength ? "#34d399" : "#71717a", display: "flex", alignItems: "center", gap: "4px" }}>
+                        {s.hasMinLength ? "✓" : "○"} Min. 8 Characters
+                      </span>
+                      <span style={{ color: s.hasUpperCase ? "#34d399" : "#71717a", display: "flex", alignItems: "center", gap: "4px" }}>
+                        {s.hasUpperCase ? "✓" : "○"} 1 Uppercase (A-Z)
+                      </span>
+                      <span style={{ color: s.hasLowerCase ? "#34d399" : "#71717a", display: "flex", alignItems: "center", gap: "4px" }}>
+                        {s.hasLowerCase ? "✓" : "○"} 1 Lowercase (a-z)
+                      </span>
+                      <span style={{ color: s.hasNumber ? "#34d399" : "#71717a", display: "flex", alignItems: "center", gap: "4px" }}>
+                        {s.hasNumber ? "✓" : "○"} 1 Number (0-9)
+                      </span>
+                      <span style={{ color: s.hasSpecialChar ? "#34d399" : "#71717a", display: "flex", alignItems: "center", gap: "4px", gridColumn: "span 2" }}>
+                        {s.hasSpecialChar ? "✓" : "○"} 1 Special Symbol (!@#$%...)
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>
