@@ -4,10 +4,13 @@ Owner: Taranay (Backend Lead) / Saurav (DevOps Lead)
 Phase: P6 (Remediation & GitHub Automation)
 """
 from datetime import datetime, timezone
+import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from aiops_contracts import IncidentStatus, PlanStatus, VerificationStatus, Severity
 from src.database import get_db
@@ -22,6 +25,7 @@ router = APIRouter(prefix="/incidents", tags=["Remediation & Governance"])
 class ApprovalRequest(BaseModel):
     approver_id: str = Field(..., description="SRE or Admin user ID authorizing the action")
     notes: Optional[str] = Field("Approved via Developer Cockpit", description="Audit trail notes for approval")
+    simulated_verification_metrics: Optional[Dict[str, Any]] = Field(None, description="Optional telemetry metrics for chaos/resilience testing")
 
 
 class RejectionRequest(BaseModel):
@@ -178,16 +182,34 @@ def approve_and_execute_remediation(
         sys.modules["worker_verification_engine"] = mod_v
         spec_v.loader.exec_module(mod_v)
 
-    orchestrator = sys.modules["worker_remediation_adapter"].RemediationOrchestrator()
-    execution_result = orchestrator.execute_plan(contract_plan, contract_incident)
+    # 4. Execute Remediation with exception handling (Phase P9 Hardening)
+    execution_failed = False
+    try:
+        orchestrator = sys.modules["worker_remediation_adapter"].RemediationOrchestrator()
+        execution_result = orchestrator.execute_plan(contract_plan, contract_incident)
+    except Exception as e:
+        logger.error(f"Remediation execution adapter error: {e}")
+        execution_failed = True
+        execution_result = {
+            "status": "failed",
+            "error": str(e),
+            "results": [],
+        }
 
-    # 5. Mark Plan Executed
-    plan.status = PlanStatus.COMPLETED.value
+    # 5. Mark Plan Executed or Failed
+    if execution_failed:
+        plan.status = PlanStatus.FAILED.value
+    else:
+        plan.status = PlanStatus.COMPLETED.value
     plan.executed_at = now
 
-    # 6. Post-Remediation Verification (Rule 17)
+    # 6. Post-Remediation Telemetry Verification (Rule 17 Enforcement)
     verifier = sys.modules["worker_verification_engine"].TelemetryVerificationEngine()
-    verification_contract = verifier.verify_remediation(contract_incident, contract_plan)
+    simulated_metrics = getattr(payload, "simulated_verification_metrics", None)
+    if execution_failed and not simulated_metrics:
+        simulated_metrics = {"error_rate": 0.95, "p95_latency_ms": 1200.0, "healthy_replicas": 0}
+
+    verification_contract = verifier.verify_remediation(contract_incident, contract_plan, simulated_metrics=simulated_metrics)
 
     db_verification = VerificationModel(
         id=verification_contract.id,
@@ -200,10 +222,15 @@ def approve_and_execute_remediation(
     )
     db.add(db_verification)
 
-    # 7. Advance Incident State to RESOLVED upon verified remediation
-    if verification_contract.status == VerificationStatus.PASSED:
+    # 7. Advance Incident State to RESOLVED ONLY IF Verification PASSED (Rule 17 Invariant)
+    if verification_contract.status == VerificationStatus.PASSED and not execution_failed:
         incident.status = IncidentStatus.RESOLVED.value
         incident.resolved_at = datetime.now(timezone.utc)
+    else:
+        # Crucial Rule 17 Invariant: Verification failed -> Mark plan failed, keep incident OPEN
+        plan.status = PlanStatus.FAILED.value
+        incident.status = IncidentStatus.OPEN.value
+        logger.warning(f"Rule 17 Violation Prevented: Remediation failed verification for Incident {incident_id}. State remains OPEN.")
 
     db.commit()
     db.refresh(incident)

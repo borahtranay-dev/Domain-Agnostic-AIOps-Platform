@@ -144,13 +144,21 @@ class DiagnosisEngine:
             order=1,
         )
 
-        # 8. Construct P2 RemediationPlan Contract Model
+        # 8. Construct P2 RemediationPlan Contract Model (Phase P9 Low-Confidence Guard)
+        is_low_confidence = confidence < 0.60
+        actions_list = [remediation_action] if not is_low_confidence else []
+        plan_rationale = (
+            f"Grounded on runbook {top_match.id} ({top_match.title}) with confidence {confidence}"
+            if not is_low_confidence
+            else f"Low-confidence match ({confidence}). Autonomous actions withheld for manual SRE review."
+        )
+
         remediation_plan = RemediationPlan(
             id=plan_id,
             incident_id=incident.id,
             diagnosis_id=diagnosis.id,
-            rationale=f"Grounded on runbook {top_match.id} ({top_match.title}) with confidence {confidence}",
-            actions=[remediation_action],
+            rationale=plan_rationale,
+            actions=actions_list,
         )
 
         return {

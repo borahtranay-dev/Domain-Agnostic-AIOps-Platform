@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.database import Base, engine, check_database_connection
 from src.routers import events_router, incidents_router, webhooks_router, remediation_router
+from src.middleware import SecurityHeadersMiddleware, RateLimitMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,10 @@ app = FastAPI(
     description="Domain-Agnostic AIOps Self-Healing Platform Core API",
     lifespan=lifespan,
 )
+
+# Phase P9 Hardening: Enterprise Security Headers & Rate Limiting
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests=100, window_seconds=60)
 
 # Enable CORS for Developer Cockpit (apps/web)
 app.add_middleware(
