@@ -112,3 +112,4 @@ def verify_release_readiness() -> bool:
     if len(sign_offs) != 4:
         return False
     return all(entry.get("sign_off_status") == "APPROVED" for entry in sign_offs.values())
+

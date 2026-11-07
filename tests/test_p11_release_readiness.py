@@ -107,3 +107,4 @@ def test_domain_agnosticity_invariant_in_release():
     forbidden_tokens = ["order_id", "cart", "payment_status", "inventory", "checkout"]
     for token in forbidden_tokens:
         assert token not in manifest_str, f"Leaked e-commerce token '{token}' in production release manifest!"
+
