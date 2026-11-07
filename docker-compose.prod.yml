@@ -1,0 +1,168 @@
+version: '3.8'
+
+# Phase P11: Production Environment Definition (v1.0.0 Production Release)
+# Enterprise-grade container topology with restart policies, resource limits, and hardened healthchecks.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aiops-prod-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-aiops_prod_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-aiops_prod_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - aiops-prod-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: aiops-prod-redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-}"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - prod_redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - aiops-prod-net
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: aiops-prod-api
+    restart: always
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      APP_ENV: production
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-aiops_prod_db}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      AI_WORKER_INTERNAL_URL: http://ai-worker:8001
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+    networks:
+      - aiops-prod-net
+
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    container_name: aiops-prod-worker
+    restart: always
+    environment:
+      APP_ENV: production
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      LOG_LEVEL: INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    networks:
+      - aiops-prod-net
+
+  ai-worker:
+    build:
+      context: ./apps/ai-worker
+      dockerfile: Dockerfile
+    container_name: aiops-prod-ai-worker
+    restart: always
+    ports:
+      - "${AI_WORKER_PORT:-8001}:8001"
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+    networks:
+      - aiops-prod-net
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: aiops-prod-web
+    restart: always
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_AI_WORKER_URL: ${NEXT_PUBLIC_AI_WORKER_URL:-http://localhost:8001}
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - aiops-prod-net
+
+networks:
+  aiops-prod-net:
+    driver: bridge
+
+volumes:
+  prod_postgres_data:
+  prod_redis_data:
