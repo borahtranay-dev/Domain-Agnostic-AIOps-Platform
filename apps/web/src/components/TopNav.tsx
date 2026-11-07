@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { changeSuperAdminPassword, changeUserPassword } from "@/lib/authSecurity";
 
 interface TopNavProps {
   searchQuery: string;
@@ -30,6 +31,58 @@ export function TopNav({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAlertPopover, setShowAlertPopover] = useState(false);
   const [showUsersModal, setShowUsersModal] = useState(false);
+
+  // Change Password States
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPass, setCurrentPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState<string | null>(null);
+
+  const handleChangePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    setPwSuccess(null);
+
+    if (!currentPass || !newPass || !confirmPass) {
+      setPwError("Please fill out all password fields.");
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      setPwError("New password and confirmation password do not match.");
+      return;
+    }
+
+    if (newPass.length < 8) {
+      setPwError("New password must be at least 8 characters long.");
+      return;
+    }
+
+    if (currentUser?.role === "super_admin") {
+      const res = changeSuperAdminPassword(currentPass, newPass);
+      if (res.success) {
+        setPwSuccess(res.message);
+        setCurrentPass("");
+        setNewPass("");
+        setConfirmPass("");
+      } else {
+        setPwError(res.message);
+      }
+    } else {
+      const userIdentifier = currentUser?.email || "";
+      const res = changeUserPassword(userIdentifier, currentPass, newPass);
+      if (res.success) {
+        setPwSuccess(res.message);
+        setCurrentPass("");
+        setNewPass("");
+        setConfirmPass("");
+      } else {
+        setPwError(res.message);
+      }
+    }
+  };
 
   // Helper to get registered users from localStorage
   const getRegisteredUsers = () => {
@@ -267,6 +320,26 @@ export function TopNav({
                   </>
                 )}
 
+                {/* Change Password for All Logged-in Users & Super Admin */}
+                <button
+                  onClick={() => {
+                    setShowChangePasswordModal(true);
+                    setShowAuthModal(false);
+                    setPwError(null);
+                    setPwSuccess(null);
+                    setCurrentPass("");
+                    setNewPass("");
+                    setConfirmPass("");
+                  }}
+                  className="demo-popover-btn"
+                >
+                  <span className="btn-bullet blue">🔒</span>
+                  <div className="btn-desc">
+                    <strong>Change Password</strong>
+                    <small>{currentUser?.role === "super_admin" ? "Update master admin password" : "Update your workspace password"}</small>
+                  </div>
+                </button>
+
                 <button
                   onClick={() => {
                     onSignOut?.();
@@ -375,6 +448,178 @@ export function TopNav({
               <span>Total Workspaces: {1 + getRegisteredUsers().length}</span>
               <span>Exclusive Super Admin: Saurav</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal (For Super Admin and All Tenant Users) */}
+      {showChangePasswordModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          backgroundColor: "rgba(0, 0, 0, 0.75)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          backdropFilter: "blur(4px)"
+        }}>
+          <div style={{
+            background: "#0f0f12",
+            border: "1px solid #27272e",
+            borderRadius: "12px",
+            width: "90%",
+            maxWidth: "460px",
+            padding: "1.5rem",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+            color: "#f4f4f5"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid #23232a", paddingBottom: "0.75rem" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#f8fafc" }}>
+                  🔒 Update Security Password
+                </h3>
+                <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>
+                  Account: <strong style={{ color: "#38bdf8" }}>{currentUser?.email || "admin@platform.io"}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowChangePasswordModal(false)}
+                style={{
+                  background: "#27272e",
+                  border: "none",
+                  color: "#cbd5e1",
+                  borderRadius: "6px",
+                  padding: "0.3rem 0.6rem",
+                  cursor: "pointer",
+                  fontSize: "0.8rem"
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {pwError && (
+              <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#fca5a5", padding: "0.6rem 0.8rem", borderRadius: "6px", fontSize: "0.8rem", marginBottom: "1rem" }}>
+                {pwError}
+              </div>
+            )}
+
+            {pwSuccess && (
+              <div style={{ background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", color: "#6ee7b7", padding: "0.6rem 0.8rem", borderRadius: "6px", fontSize: "0.8rem", marginBottom: "1rem" }}>
+                {pwSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePasswordSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", marginBottom: "0.3rem", fontWeight: 600 }}>
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter current password"
+                  value={currentPass}
+                  onChange={(e) => setCurrentPass(e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: "#18181b",
+                    border: "1px solid #27272e",
+                    borderRadius: "6px",
+                    padding: "0.55rem 0.75rem",
+                    color: "#f4f4f5",
+                    fontSize: "0.85rem",
+                    outline: "none"
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", marginBottom: "0.3rem", fontWeight: 600 }}>
+                  New Password <span style={{ fontSize: "0.7rem", color: "#71717a" }}>(min. 8 characters)</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter new strong password"
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: "#18181b",
+                    border: "1px solid #27272e",
+                    borderRadius: "6px",
+                    padding: "0.55rem 0.75rem",
+                    color: "#f4f4f5",
+                    fontSize: "0.85rem",
+                    outline: "none"
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8", marginBottom: "0.3rem", fontWeight: 600 }}>
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Re-enter new password"
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: "#18181b",
+                    border: "1px solid #27272e",
+                    borderRadius: "6px",
+                    padding: "0.55rem 0.75rem",
+                    color: "#f4f4f5",
+                    fontSize: "0.85rem",
+                    outline: "none"
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.5rem" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordModal(false)}
+                  style={{
+                    flex: 1,
+                    background: "#27272e",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "0.6rem",
+                    color: "#cbd5e1",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    fontWeight: 600
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 2,
+                    background: "#0284c7",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "0.6rem",
+                    color: "#ffffff",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    fontWeight: 600
+                  }}
+                >
+                  Update &amp; Secure Account
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

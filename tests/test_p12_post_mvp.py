@@ -66,3 +66,4 @@ def test_multi_domain_adapter_contract_compatibility():
     assert "FinTech" in domains
     assert "Healthcare" in domains
     assert "IoT" in domains
+

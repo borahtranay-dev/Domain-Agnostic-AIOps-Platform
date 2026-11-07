@@ -1,6 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+import {
+  sha256,
+  verifySuperAdminPassword,
+  verifyDemoSREPassword,
+  verifyRegisteredUserPassword,
+} from "@/lib/authSecurity";
 
 interface UserProfile {
   name: string;
@@ -9,7 +15,8 @@ interface UserProfile {
   role: "super_admin" | "tenant_sre";
   tenant: string;
   projectWebsite?: string;
-  password?: string;
+  passwordHash?: string;
+  password?: string; // legacy support
   isVerified?: boolean;
 }
 
@@ -95,10 +102,10 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
     const cleanId = loginIdentifier.trim().toLowerCase();
 
-    // 1. Super Admin Check (Strictly Saurav)
+    // 1. Super Admin Check (Strictly Saurav - Cryptographic Hash Verification)
     if (
       (cleanId === "admin@platform.io" || cleanId === "saurav" || cleanId === "admin") &&
-      loginPassword === "admin123"
+      verifySuperAdminPassword(loginPassword)
     ) {
       onLogin({
         name: "Saurav (Super Admin)",
@@ -109,8 +116,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       return;
     }
 
-    // 2. Default Demo SRE Check
-    if (cleanId === "sre@acme.com" && loginPassword === "acme123") {
+    // 2. Default Demo SRE Check (Cryptographic Hash Verification)
+    if (cleanId === "sre@acme.com" && verifyDemoSREPassword(loginPassword)) {
       onLogin({
         name: "DevOps Engineer",
         email: "sre@acme.com",
@@ -120,12 +127,12 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       return;
     }
 
-    // 3. Registered User Check (Matches either Email or Mobile Number)
+    // 3. Registered User Check (Matches either Email or Mobile Number via Cryptographic Hash)
     const storedUsers = getStoredUsers();
     const foundUser = storedUsers.find(
       (u) =>
         (u.email.toLowerCase() === cleanId || u.mobile.replace(/\D/g, "") === cleanId.replace(/\D/g, "")) &&
-        u.password === loginPassword
+        verifyRegisteredUserPassword(u, loginPassword)
     );
 
     if (foundUser) {
@@ -197,7 +204,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       name: cleanName,
       email: cleanEmail,
       mobile: cleanMobile,
-      password: regPassword,
+      passwordHash: sha256(regPassword),
       role: "tenant_sre",
       tenant: `${cleanProject} Workspace`,
       projectWebsite: cleanProject,
