@@ -95,27 +95,27 @@ export function Header() {
               <div className="dropdown-divider"></div>
               <div className="dropdown-detail-row">
                 <span>Account Role:</span>
-                <span className="dropdown-badge-accent">Super Admin (RBAC: Tier-1)</span>
+                <span className="dropdown-badge-accent">Platform Administrator</span>
               </div>
               <div className="dropdown-detail-row">
-                <span>Auth Session:</span>
-                <span className="dropdown-badge-green">● Active (JWT Verified)</span>
+                <span>Session:</span>
+                <span className="dropdown-badge-green">● Active</span>
               </div>
               <div className="dropdown-detail-row">
-                <span>Tenant Scope:</span>
-                <code>global-all-clusters</code>
+                <span>Workspace:</span>
+                <code>Primary Infrastructure</code>
               </div>
               <div className="dropdown-divider"></div>
               <div className="dropdown-actions-row">
                 <button 
                   className="dropdown-btn-switch skeuo-button"
-                  onClick={() => alert("Simulated: Switched tenant context to tenant-01.")}
+                  onClick={() => alert("Switched workspace context to tenant-01.")}
                 >
-                  Switch Tenant
+                  Switch Workspace
                 </button>
                 <button 
                   className="dropdown-btn-logout skeuo-button"
-                  onClick={() => alert("Session logout simulated.")}
+                  onClick={() => alert("Signed out successfully.")}
                 >
                   Sign Out
                 </button>

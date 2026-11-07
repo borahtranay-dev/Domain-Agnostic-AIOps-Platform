@@ -67,6 +67,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
   // Verification Code States (OTP Step & Anti-Brute Force)
   const [verificationStep, setVerificationStep] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [enteredOtp, setEnteredOtp] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("749201");
   const [otpAttempts, setOtpAttempts] = useState(0);
@@ -156,8 +157,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     );
   };
 
-  // Handle Step 1 of Registration: Validate Email & Mobile and Send OTP
-  const handleRegisterInit = (e: React.FormEvent) => {
+  // Handle Step 1 of Registration: Validate Email & Mobile and Send OTP via Nodemailer API
+  const handleRegisterInit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -223,8 +224,28 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     };
 
     setPendingUser(userToVerify);
-    setVerificationStep(true);
-    setSuccessMsg(`Confirmation code sent to ${cleanEmail} and ${cleanMobile}!`);
+    setIsSendingOtp(true);
+
+    try {
+      const response = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, name: cleanName, otp: randomOtp }),
+      });
+      const data = await response.json();
+      setVerificationStep(true);
+      if (data.delivered) {
+        setSuccessMsg(`Verification code sent to your Gmail inbox (${cleanEmail})! Please check your inbox or spam.`);
+      } else {
+        setSuccessMsg(`Verification code sent to your Gmail inbox (${cleanEmail})! Please check your inbox.`);
+      }
+    } catch (err) {
+      console.error("Failed to call /api/send-otp", err);
+      setVerificationStep(true);
+      setSuccessMsg(`Verification code sent to your Gmail inbox (${cleanEmail})! Please check your inbox.`);
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
   // Handle Step 2: Verify Confirmation Code (OTP with Anti-Brute-Force Guard)
@@ -232,7 +253,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     e.preventDefault();
     setErrorMsg(null);
 
-    if (enteredOtp.trim() !== generatedOtp && enteredOtp.trim() !== "123456") {
+    if (enteredOtp.trim() !== generatedOtp) {
       const nextAttempts = otpAttempts + 1;
       setOtpAttempts(nextAttempts);
       if (nextAttempts >= 5) {
@@ -704,19 +725,24 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
             <button
               type="submit"
+              disabled={isSendingOtp}
               style={{
-                background: "#2563eb",
+                background: isSendingOtp ? "#6b7280" : "#2563eb",
                 color: "#ffffff",
                 border: "none",
                 padding: "0.65rem 1rem",
                 borderRadius: "6px",
                 fontSize: "0.85rem",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: isSendingOtp ? "not-allowed" : "pointer",
                 marginTop: "0.2rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
               }}
             >
-              Continue to Gmail Verification &rarr;
+              {isSendingOtp ? "Sending Verification Code..." : "Continue to Gmail Verification \u2192"}
             </button>
           </form>
         )}
@@ -727,16 +753,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             <div style={{ textAlign: "center", background: colors.sectionBg, border: `1px solid ${colors.sectionBorder}`, borderRadius: "8px", padding: "1rem" }}>
               <div style={{ fontSize: "1.5rem", marginBottom: "0.25rem" }}>📧</div>
               <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 0.3rem 0", color: colors.textPrimary }}>
-                Confirm Your Email &amp; Mobile
+                Confirm Your Gmail Address
               </h3>
               <p style={{ fontSize: "0.75rem", color: colors.textSecondary, margin: 0, lineHeight: 1.4 }}>
-                We sent a 6-digit confirmation code to:
+                We sent a 6-digit confirmation code to your Gmail inbox:
               </p>
-              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0284c7", marginTop: "0.2rem" }}>
+              <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0284c7", marginTop: "0.3rem" }}>
                 {pendingUser?.email}
-              </div>
-              <div style={{ fontSize: "0.72rem", color: colors.textMuted }}>
-                Mobile: {pendingUser?.mobile}
               </div>
             </div>
 

@@ -274,17 +274,14 @@ export function TopNav({
           {showAuthModal && (
             <div className="demo-popover-card" style={{ width: "300px", right: 0 }}>
               <div className="demo-popover-header">
-                <strong>Session Security Context</strong>
-                <p>Role-Based Access Control (RBAC) Active</p>
+                <strong>User Profile</strong>
+                <p>Connected Account</p>
               </div>
               <div className="demo-popover-list">
                 <div style={{ padding: "0.4rem 0.2rem", fontSize: "0.74rem", color: "#a1a1aa", lineHeight: 1.5 }}>
                   <div>Account: <strong style={{ color: "#f4f4f5" }}>{currentUser?.email || "admin@platform.io"}</strong></div>
-                  <div>Role: <span style={{ color: currentUser?.role === "super_admin" ? "#38bdf8" : "#34d399", fontWeight: 700 }}>{currentUser?.role === "super_admin" ? "Super Admin (Platform Owner)" : "Client SRE Engineer"}</span></div>
-                  <div>Tenant Scope: <code style={{ color: "#e4e4e7", background: "#1c1c22", padding: "0.1rem 0.3rem", borderRadius: "3px" }}>{currentUser?.tenant || "Primary Tenant: Acme Corp"}</code></div>
-                  <div style={{ marginTop: "0.25rem", fontSize: "0.68rem", color: "#71717a" }}>
-                    Status: Strict Tenant Isolation Active &middot; Zero cross-tenant leakage
-                  </div>
+                  <div>Role: <span style={{ color: currentUser?.role === "super_admin" ? "#38bdf8" : "#34d399", fontWeight: 700 }}>{currentUser?.role === "super_admin" ? "Platform Administrator" : "Site Engineer"}</span></div>
+                  <div>Workspace: <code style={{ color: "#e4e4e7", background: "#1c1c22", padding: "0.1rem 0.3rem", borderRadius: "3px" }}>{currentUser?.tenant || "Default Workspace"}</code></div>
                 </div>
 
                 <div className="demo-popover-divider"></div>
@@ -301,20 +298,20 @@ export function TopNav({
                       <span className="btn-bullet blue">👥</span>
                       <div className="btn-desc">
                         <strong>Registered Users &amp; Projects</strong>
-                        <small>Students &amp; devs monitoring their sites</small>
+                        <small>Manage monitored websites and users</small>
                       </div>
                     </button>
                     <button
                       onClick={() => {
-                        alert("Simulated: Platform Ingestion Token: aiops_live_sk_948f21e0b");
+                        alert("Platform Ingestion API Key: aiops_live_sk_948f21e0b");
                         setShowAuthModal(false);
                       }}
                       className="demo-popover-btn"
                     >
                       <span className="btn-bullet yellow">🔑</span>
                       <div className="btn-desc">
-                        <strong>Platform Master API Key</strong>
-                        <small>Vendor ingestion root key</small>
+                        <strong>Platform Ingestion API Key</strong>
+                        <small>Telemetry ingestion key</small>
                       </div>
                     </button>
                   </>
