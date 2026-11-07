@@ -1,0 +1,115 @@
+version: '3.8'
+
+# Phase P10: Staging Environment Definition
+# Isolated staging container topology with non-overlapping ports and dedicated staging database.
+
+services:
+  postgres-staging:
+    image: postgres:16-alpine
+    container_name: aiops-staging-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${STAGING_POSTGRES_USER:-staging_aiops}
+      POSTGRES_PASSWORD: ${STAGING_POSTGRES_PASSWORD:-staging_secret_pass}
+      POSTGRES_DB: ${STAGING_POSTGRES_DB:-aiops_staging_db}
+    ports:
+      - "${STAGING_POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STAGING_POSTGRES_USER:-staging_aiops} -d ${STAGING_POSTGRES_DB:-aiops_staging_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - staging_postgres_data:/var/lib/postgresql/data
+    networks:
+      - aiops-staging-net
+
+  redis-staging:
+    image: redis:7-alpine
+    container_name: aiops-staging-redis
+    restart: unless-stopped
+    ports:
+      - "${STAGING_REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - staging_redis_data:/data
+    networks:
+      - aiops-staging-net
+
+  api-staging:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: aiops-staging-api
+    restart: unless-stopped
+    ports:
+      - "${STAGING_API_PORT:-8080}:8000"
+    environment:
+      APP_ENV: staging
+      POSTGRES_USER: ${STAGING_POSTGRES_USER:-staging_aiops}
+      POSTGRES_PASSWORD: ${STAGING_POSTGRES_PASSWORD:-staging_secret_pass}
+      POSTGRES_DB: ${STAGING_POSTGRES_DB:-aiops_staging_db}
+      POSTGRES_HOST: postgres-staging
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis-staging
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis-staging:6379/0
+      AI_WORKER_INTERNAL_URL: http://ai-worker-staging:8001
+      LOG_LEVEL: DEBUG
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - aiops-staging-net
+
+  ai-worker-staging:
+    build:
+      context: ./apps/ai-worker
+      dockerfile: Dockerfile
+    container_name: aiops-staging-ai-worker
+    restart: unless-stopped
+    ports:
+      - "${STAGING_AI_WORKER_PORT:-8082}:8001"
+    environment:
+      APP_ENV: staging
+      LOG_LEVEL: DEBUG
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    networks:
+      - aiops-staging-net
+
+  web-staging:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: aiops-staging-web
+    restart: unless-stopped
+    ports:
+      - "${STAGING_WEB_PORT:-3001}:3000"
+    environment:
+      APP_ENV: staging
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_AI_WORKER_URL: http://localhost:8082
+    depends_on:
+      - api-staging
+    networks:
+      - aiops-staging-net
+
+networks:
+  aiops-staging-net:
+    driver: bridge
+
+volumes:
+  staging_postgres_data:
+  staging_redis_data:
+
